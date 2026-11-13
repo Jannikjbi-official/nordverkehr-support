@@ -8,6 +8,13 @@ export interface SeedArticle {
   body: string; // Markdown
 }
 
+/**
+ * Fassung der Standard-Artikel. Erhöhen, wenn Texte geändert wurden: Artikel,
+ * die das Team nicht bearbeitet hat, bekommen dann beim nächsten Start den
+ * neuen Text (bearbeitete bleiben unangetastet).
+ */
+export const SEED_CONTENT_VERSION = 2;
+
 export const SEED_ARTICLES: SeedArticle[] = [
   {
     slug: "erste-schritte-auf-nordverkehr",
@@ -708,6 +715,8 @@ Wenn die Aufnahme fertig ist, gib in der F8-Konsole ein:
 profiler saveJSON profilerNV
 \`\`\`
 
+![F8-Konsole mit den beiden Profiler-Befehlen](/hilfe/profiler-konsole.webp)
+
 ## 4. Datei finden
 
 Die Datei liegt im FiveM-Ordner. Drück **Windows + R**, füg diesen Pfad ein und bestätige mit Enter:
@@ -741,6 +750,8 @@ Im Portal kannst du nur Bilder direkt hochladen – deshalb der Umweg über den 
 4. Unter **Linked Identities** bzw. **Default Identity** auf **Change Default** klicken und bei der gewünschten Identität **Set as default** wählen.
 5. FiveM neu starten.
 
+![FiveM-Einstellungen: Account, Linked Identities, Change Default und Set as default](/hilfe/cfx-identitaet.webp)
+
 Die richtige Identität erkennst du meist am Datum unter **Last active** – das ist die, mit der du zuletzt bei uns gespielt hast.
 
 ## Hinweis
@@ -768,6 +779,10 @@ Die Option wird nur angezeigt, wenn deinem CFX.re-Konto **mehrere Identitäten**
 | Renderauflösung | **native Auflösung** | z. B. 1920×1080. Bei GPU-Limit kann weniger mehr FPS bringen. |
 | Erweitertes Texturbudget | **40–60 %** | Auf 0 % laden Texturen nicht richtig, siehe [Textur-Fix](/hilfe/technik-verbindung/fix-fuer-textur-bugs). Bei wenig VRAM eher 40 %. |
 | VSync | **Aus** | Weniger Input-Lag, oft mehr FPS. Nur bei starkem Tearing einschalten. |
+
+![Erweiterte Grafik: Erweiterte Darstellungsdistanz auf 0](/hilfe/textur-darstellungsdistanz.webp)
+
+![Erweitertes Texturbudget: 0 % ist falsch, 40–60 % empfohlen](/hilfe/textur-budget.webp)
 
 ## Immer noch Ruckler?
 

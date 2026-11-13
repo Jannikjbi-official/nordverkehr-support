@@ -15,6 +15,28 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "cdn.discordapp.com" }],
   },
   serverExternalPackages: ["sharp", "@discordjs/rest"],
+  // Kleinere Server-Funktionen (weniger Speicher pro Deployment auf Vercel):
+  // Prisma bringt Engines für alle Datenbanken/Laufzeiten mit, sharp Varianten
+  // für andere Systeme – gebraucht wird nur die native Postgres-Engine (Linux, glibc).
+  outputFileTracingExcludes: {
+    "*": [
+      "node_modules/@prisma/client/runtime/*.wasm*",
+      "node_modules/@prisma/client/runtime/query_engine_bg.*",
+      "node_modules/@prisma/client/runtime/query_compiler_bg.*",
+      "node_modules/@prisma/client/runtime/binary.*",
+      "node_modules/@prisma/client/runtime/edge*",
+      "node_modules/@prisma/client/runtime/wasm*",
+      "node_modules/@prisma/client/runtime/react-native*",
+      "node_modules/.prisma/client/*.wasm",
+      "node_modules/.prisma/client/edge*",
+      "node_modules/.prisma/client/wasm*",
+      "node_modules/@img/sharp-libvips-linuxmusl-*/**",
+      "node_modules/@img/sharp-linuxmusl-*/**",
+      "node_modules/@img/sharp-wasm32/**",
+      "node_modules/@img/sharp-darwin-*/**",
+      "node_modules/@img/sharp-win32-*/**",
+    ],
+  },
   turbopack: {
     rules: {
       "*.css": {

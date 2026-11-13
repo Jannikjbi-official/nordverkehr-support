@@ -304,7 +304,7 @@ src/
     status/         FiveM- und TeamSpeak-Status
     ai/             Claude-Anbindung, Schutzschicht, Entwürfe/Zusammenfassungen
     setup/          Startdaten, Seed-Artikel, Demo-Daten
-  proxy.ts          Zugriffsschutz vor geschützten Routen
+  (kein Proxy: jede Seite/API prüft Login, Bann und Rolle selbst)
 prisma/             Schema (PostgreSQL, Tabellen mit Präfix sup_), Seed
 tests/              unit/ (Vitest), integration/ (echtes Postgres)
 docs/               Plan, Patch fürs Bewerbungsportal

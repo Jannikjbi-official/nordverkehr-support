@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { canServeStale, levelFromRoles, needsRefresh, resolveAccess, type AccessDeps, type AccessSubject } from "@/lib/auth/access";
-import { bannedMayAccess, classifyRoute, decideAccess } from "@/lib/auth/routes";
 
 const roles = { supportRoleId: "1", moderationRoleId: "2", leitungRoleId: "3" };
 const NOW = new Date("2026-11-13T12:00:00Z");
@@ -83,32 +82,6 @@ describe("Zugriff für gebannte Spieler", () => {
     const d = deps({ fetchBan: vi.fn(async () => Promise.reject(new Error("50013"))) });
     const a = await resolveAccess(subject({ guildBanned: true, guildBanReason: "x" }), d);
     expect(a.guildBanned).toBe(true);
-  });
-
-  it("Routen: Gebannte nur Anträge und Konto", () => {
-    expect(bannedMayAccess("/antraege")).toBe(true);
-    expect(bannedMayAccess("/antraege/neu/entbannung")).toBe(true);
-    expect(bannedMayAccess("/konto")).toBe(true);
-    expect(bannedMayAccess("/api/me/export")).toBe(true);
-    expect(bannedMayAccess("/tickets/neu")).toBe(false);
-    expect(bannedMayAccess("/dashboard")).toBe(false);
-    expect(bannedMayAccess("/team")).toBe(false);
-  });
-
-  it("Proxy leitet Gebannte von Tickets zu den Anträgen", () => {
-    expect(decideAccess(classifyRoute("/tickets/neu"), "/tickets/neu", { loggedIn: true, isTeam: false, banned: true })).toEqual({ action: "redirect", to: "/antraege?gesperrt=1" });
-    expect(decideAccess(classifyRoute("/antraege/neu/entbannung"), "/antraege/neu/entbannung", { loggedIn: true, isTeam: false, banned: true })).toEqual({ action: "next" });
-    expect(decideAccess(classifyRoute("/api/uploads"), "/api/uploads", { loggedIn: true, isTeam: false, banned: true })).toEqual({ action: "next" });
-  });
-
-  it("Login bleibt Pflicht – auch für Anträge", () => {
-    expect(decideAccess(classifyRoute("/antraege"), "/antraege", { loggedIn: false, isTeam: false, banned: false })).toEqual({ action: "redirect", to: "/login?callbackUrl=%2Fantraege" });
-  });
-
-  it("Team-Bereich nur mit Rolle (auch bei Groß/Kleinschreibung und Slashes)", () => {
-    expect(classifyRoute("//Team//tickets/")).toBe("team-page");
-    expect(decideAccess("team-page", "/team", { loggedIn: true, isTeam: false, banned: false })).toEqual({ action: "redirect", to: "/kein-zugriff" });
-    expect(decideAccess("team-api", "/api/team/export", { loggedIn: true, isTeam: false, banned: false })).toEqual({ action: "json", status: 403, error: "Kein Zugriff." });
   });
 });
 

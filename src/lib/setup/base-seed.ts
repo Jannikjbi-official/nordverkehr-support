@@ -4,7 +4,7 @@
  */
 import type { PrismaClient } from "@prisma/client";
 import { HELP_CATEGORIES, REQUEST_TYPES, TEMPLATES } from "@/lib/setup/seed-data";
-import { SEED_ARTICLES } from "@/lib/setup/articles";
+import { SEED_ARTICLES, SEED_CONTENT_VERSION } from "@/lib/setup/articles";
 
 export async function ensureBaseData(db: PrismaClient, log: (m: string) => void = () => {}) {
   const catIds = new Map<string, string>();
@@ -38,6 +38,22 @@ export async function ensureBaseData(db: PrismaClient, log: (m: string) => void 
     const ids = a.related.map((s) => bySlug.get(s)).filter((x): x is string => !!x);
     if (ids.length) await db.helpArticle.update({ where: { id: row.id }, data: { relatedIds: ids } });
   }
+  // Neue Fassung der Standard-Texte: nur Artikel, die das Team nie bearbeitet hat
+  // (kein Autor, Inhalt seit dem Anlegen unverändert), werden aktualisiert.
+  if ((await seedContentVersion(db)) < SEED_CONTENT_VERSION) {
+    let updated = 0;
+    for (const a of SEED_ARTICLES) {
+      const row = await db.helpArticle.findUnique({ where: { slug: a.slug } });
+      if (!row || row.authorId || !row.publishedAt || row.contentUpdatedAt.getTime() !== row.publishedAt.getTime()) continue;
+      const same = row.title === a.title && row.summary === a.summary && row.body === a.body && row.tags.join("|") === a.tags.join("|");
+      if (same) continue;
+      await db.helpArticle.update({ where: { id: row.id }, data: { title: a.title, summary: a.summary, body: a.body, tags: a.tags, contentUpdatedAt: now, publishedAt: now } });
+      updated++;
+    }
+    await db.setting.upsert({ where: { key: CONTENT_VERSION_KEY }, create: { key: CONTENT_VERSION_KEY, value: SEED_CONTENT_VERSION }, update: { value: SEED_CONTENT_VERSION } });
+    log(`Artikel aktualisiert: ${updated}`);
+  }
+
   await db.setting.upsert({
     where: { key: SEEDED_ARTICLES_KEY },
     create: { key: SEEDED_ARTICLES_KEY, value: SEED_ARTICLES.map((a) => a.slug) },
@@ -82,6 +98,12 @@ export async function ensureBaseData(db: PrismaClient, log: (m: string) => void 
 }
 
 const SEEDED_ARTICLES_KEY = "seed.articleSlugs";
+const CONTENT_VERSION_KEY = "seed.contentVersion";
+
+async function seedContentVersion(db: PrismaClient): Promise<number> {
+  const row = await db.setting.findUnique({ where: { key: CONTENT_VERSION_KEY } });
+  return typeof row?.value === "number" ? row.value : 0;
+}
 
 async function seededArticleSlugs(db: PrismaClient): Promise<Set<string>> {
   const row = await db.setting.findUnique({ where: { key: SEEDED_ARTICLES_KEY } });
@@ -104,6 +126,6 @@ let ensured = false;
 export async function ensureBaseDataOnce(db: PrismaClient) {
   if (ensured) return;
   ensured = true;
-  if ((await db.helpCategory.count()) > 0 && (await db.requestType.count()) > 0 && !(await hasNewSeedArticles(db))) return;
+  if ((await db.helpCategory.count()) > 0 && (await db.requestType.count()) > 0 && !(await hasNewSeedArticles(db)) && (await seedContentVersion(db)) >= SEED_CONTENT_VERSION) return;
   await ensureBaseData(db, (m) => console.log("[setup]", m));
 }

@@ -106,6 +106,14 @@ export function getDb(): PrismaClient {
   if (!globalForPrisma.__nvsPrisma) {
     // Query-Extension ändert keine Typen – der Cast ist sicher
     globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(noNulBytes).$extends(realtimeSignals) as unknown as PrismaClient;
+    // Ersteinrichtung (leere DB bzw. neue Standard-Artikel) einmal pro Instanz –
+    // im Hintergrund, die erste Anfrage wartet nicht darauf.
+    const client = globalForPrisma.__nvsPrisma;
+    if (process.env.NEXT_PHASE !== "phase-production-build" && process.env.VITEST !== "true") {
+      void import("@/lib/setup/base-seed")
+        .then(({ ensureBaseDataOnce }) => ensureBaseDataOnce(client))
+        .catch((e) => console.error("[setup] Ersteinrichtung fehlgeschlagen", e));
+    }
   }
   return globalForPrisma.__nvsPrisma;
 }

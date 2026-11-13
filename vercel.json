@@ -1,11 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["fra1"],
+  "regions": [
+    "fra1"
+  ],
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "crons": [
-    { "path": "/api/cron/housekeeping", "schedule": "17 3 * * *" },
-    { "path": "/api/cron/housekeeping", "schedule": "47 15 * * *" }
-  ]
+    {
+      "path": "/api/cron/housekeeping",
+      "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/cron/housekeeping",
+      "schedule": "47 15 * * *"
+    }
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)*.md' ':(exclude)docs/**' ':(exclude)tests/**' ':(exclude).env.example'"
 }
