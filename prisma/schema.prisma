@@ -1,0 +1,780 @@
+// Nordverkehr Support-Center – Datenmodell (MongoDB)
+// Nach jeder Änderung: `npm run db:push` (überträgt Schema + Indizes)
+//
+// Eigene Datenbank (Standard: `nordverkehr_support`) UND eigene Collection-Namen
+// mit Präfix `sup_` – so kollidiert nichts mit dem Bewerbungsportal, selbst wenn
+// beide versehentlich auf dieselbe Datenbank zeigen.
+// MongoDB muss als Replica Set laufen (Atlas: immer; lokal: `npm run db:dev`).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+/// Team-Stufe aus den Discord-Rollen (höchste zählt)
+enum TeamLevel {
+  NONE
+  SUPPORT
+  MODERATION
+  LEITUNG
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_PLAYER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum Source {
+  WEB
+  DISCORD
+}
+
+/// Wer darf ein Ticket sehen?
+enum Sensitivity {
+  /// Alle Teammitglieder
+  NORMAL
+  /// Nur Moderation/Leitung
+  MOD_ONLY
+  /// Beschwerde über ein Teammitglied: nur Moderation/Leitung, nie die Beschuldigten
+  TEAM_COMPLAINT
+}
+
+enum MessageKind {
+  PLAYER
+  TEAM
+  SYSTEM
+  /// Interne Notiz – nie für Spieler sichtbar, nie nach Discord
+  INTERNAL
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  DM_CLOSED
+  NOT_SENT
+}
+
+enum RequestStatus {
+  SUBMITTED
+  IN_REVIEW
+  QUESTION
+  DECIDED
+  ARCHIVED
+  WITHDRAWN
+}
+
+/// Grobe Einordnung des Ergebnisses (für Statistik & Sperrfrist)
+enum OutcomeCategory {
+  ACCEPTED
+  PARTIAL
+  REJECTED
+}
+
+enum DecisionStatus {
+  PENDING
+  APPROVED
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum VoteValue {
+  PRO
+  CONTRA
+  ABSTAIN
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SanctionKind {
+  BAN
+  WARNING
+  KICK
+  JAIL
+  FINE
+}
+
+enum SanctionSource {
+  MANUAL
+  DISCORD
+  TXADMIN
+}
+
+enum IncidentKind {
+  PROBLEM
+  MAINTENANCE
+}
+
+enum IncidentSeverity {
+  INFO
+  MINOR
+  MAJOR
+}
+
+enum AttachmentKind {
+  IMAGE
+  LINK
+}
+
+enum OutboxType {
+  DM
+  CHANNEL_MESSAGE
+  THREAD_MESSAGE
+  THREAD_UPDATE
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Nutzer & Zugriff
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(cuid()) @map("_id")
+  discordId        String   @unique
+  username         String
+  globalName       String?
+  avatar           String?
+  discordCreatedAt DateTime
+  /// Erhöhen = alle Sitzungen dieses Nutzers sofort ungültig
+  sessionVersion   Int      @default(0)
+
+  // Rollen-Cache (kurzlebig, siehe src/lib/auth/access.ts)
+  inGuild       Boolean   @default(false)
+  teamLevel     TeamLevel @default(NONE)
+  roleIds       String[]  @default([])
+  roleCheckedAt DateTime?
+
+  // Bann-Cache: vom Discord-Server gebannt → nur Entbannungsantrag
+  guildBanned    Boolean   @default(false)
+  guildBanReason String?
+  banCheckedAt   DateTime?
+
+  /// Keine DMs vom NV Lotse (Antworten stehen trotzdem im Portal)
+  dmOptOut         Boolean   @default(false)
+  /// Datenschutz-Hinweis bestätigt (Version + Zeitpunkt)
+  consentVersion   Int?
+  consentAt        DateTime?
+  lastLoginAt      DateTime?
+  lastTeamActiveAt DateTime?
+  /// Seed-/Testnutzer ohne echten Discord-Account
+  isTest           Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tickets          Ticket[]          @relation("TicketCreator")
+  claimedTickets   Ticket[]          @relation("TicketClaimer")
+  ticketMessages   TicketMessage[]
+  requests         Request[]         @relation("RequestApplicant")
+  notesAbout       PlayerNote[]      @relation("NoteSubject")
+  notesWritten     PlayerNote[]      @relation("NoteAuthor")
+  sanctions        Sanction[]        @relation("SanctionSubject")
+  attachments      Attachment[]
+  requestComments  RequestComment[]
+  requestVotes     RequestVote[]
+  proposals        RequestDecision[] @relation("DecisionProposer")
+  approvals        RequestDecision[] @relation("DecisionApprover")
+  requestMessages  RequestMessage[]
+  cooldowns        Cooldown[]
+  articles         HelpArticle[]
+
+  @@map("sup_users")
+}
+
+/// Interne Notizen des Teams zu einer Person
+model PlayerNote {
+  id        String   @id @default(cuid()) @map("_id")
+  subjectId String
+  subject   User     @relation("NoteSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([subjectId])
+  @@map("sup_player_notes")
+}
+
+/// Banns, Verwarnungen, Kicks, Jail, Geldstrafen – manuell, aus Discord oder später aus txAdmin
+model Sanction {
+  id                String         @id @default(cuid()) @map("_id")
+  subjectDiscordId  String
+  subjectId         String?
+  subject           User?          @relation("SanctionSubject", fields: [subjectId], references: [id], onDelete: SetNull)
+  kind              SanctionKind
+  source            SanctionSource @default(MANUAL)
+  /// Ban-ID aus dem Bann-System (z. B. txAdmin), falls vorhanden
+  externalId        String?
+  /// Bannart für Sperrfristen (z. B. "temporaer", "permanent", "cheating")
+  banType           String?
+  reason            String
+  startsAt          DateTime       @default(now())
+  endsAt            DateTime?
+  /// Wer die Strafe ausgesprochen hat (Vier-Augen-Prinzip)
+  issuedByDiscordId String?
+  issuedByName      String?
+  liftedAt          DateTime?
+  liftedNote        String?
+  createdById       String?
+  createdAt         DateTime       @default(now())
+
+  requests Request[]
+
+  @@index([subjectDiscordId])
+  @@index([externalId])
+  @@map("sup_sanctions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Hilfe-Center
+// ─────────────────────────────────────────────────────────────
+
+model HelpCategory {
+  id          String        @id @default(cuid()) @map("_id")
+  slug        String        @unique
+  title       String
+  description String
+  icon        String        @default("lifebuoy")
+  order       Int           @default(0)
+  articles    HelpArticle[]
+
+  @@map("sup_help_categories")
+}
+
+model HelpArticle {
+  id               String        @id @default(cuid()) @map("_id")
+  slug             String        @unique
+  title            String
+  summary          String
+  /// Markdown
+  body             String
+  categoryId       String
+  category         HelpCategory  @relation(fields: [categoryId], references: [id])
+  status           ArticleStatus @default(DRAFT)
+  tags             String[]      @default([])
+  /// Verwandte Artikel (IDs)
+  relatedIds       String[]      @default([])
+  authorId         String?
+  author           User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  publishedAt      DateTime?
+  /// "Zuletzt aktualisiert" – nur bei inhaltlichen Änderungen (nicht bei Aufrufen)
+  contentUpdatedAt DateTime      @default(now())
+  views            Int           @default(0)
+  helpfulYes       Int           @default(0)
+  helpfulNo        Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  feedback ArticleFeedback[]
+
+  @@index([categoryId, status])
+  @@map("sup_help_articles")
+}
+
+/// "Hat dir das geholfen?" – anonym, nur ein Fingerabdruck pro Tag gegen Mehrfachabstimmung
+model ArticleFeedback {
+  id          String      @id @default(cuid()) @map("_id")
+  articleId   String
+  article     HelpArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  helpful     Boolean
+  comment     String?
+  fingerprint String
+  createdAt   DateTime    @default(now())
+
+  @@unique([articleId, fingerprint])
+  @@map("sup_article_feedback")
+}
+
+/// Suchbegriffe ohne Treffer (für das Team)
+model SearchMiss {
+  id      String   @id @default(cuid()) @map("_id")
+  term    String   @unique
+  count   Int      @default(1)
+  firstAt DateTime @default(now())
+  lastAt  DateTime @default(now())
+
+  @@map("sup_search_misses")
+}
+
+/// Bekannte Probleme und Wartungen (Statusseite)
+model StatusIncident {
+  id          String           @id @default(cuid()) @map("_id")
+  title       String
+  body        String
+  kind        IncidentKind     @default(PROBLEM)
+  severity    IncidentSeverity @default(MINOR)
+  /// Betroffene Systeme: gameserver, teamspeak, discord, website
+  systems     String[]         @default([])
+  startsAt    DateTime         @default(now())
+  endsAt      DateTime?
+  resolvedAt  DateTime?
+  /// Verlauf: [{ at, text }]
+  updates     Json?
+  createdById String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("sup_status_incidents")
+}
+
+/// Kurzzeit-Cache für externe Statusabfragen (FiveM, TeamSpeak)
+model StatusCache {
+  key       String   @id @map("_id")
+  data      Json
+  fetchedAt DateTime
+
+  @@map("sup_status_cache")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tickets
+// ─────────────────────────────────────────────────────────────
+
+model Ticket {
+  id                  String         @id @default(cuid()) @map("_id")
+  /// NVS-2026-0001
+  publicId            String         @unique
+  /// technik | beschwerde | bug | regelwerk | sonstiges (siehe lib/tickets/categories.ts)
+  category            String
+  subject             String
+  /// Pflichtfelder je Kategorie (per zod validiert)
+  fields              Json
+  status              TicketStatus   @default(OPEN)
+  priority            TicketPriority @default(NORMAL)
+  tags                String[]       @default([])
+  source              Source         @default(WEB)
+  creatorId           String
+  creator             User           @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  claimedById         String?
+  claimedBy           User?          @relation("TicketClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
+  sensitivity         Sensitivity    @default(NORMAL)
+  /// Discord-IDs von Teammitgliedern, über die sich beschwert wird – sehen das Ticket nie
+  accusedDiscordIds   String[]       @default([])
+
+  // Discord
+  discordChannelId    String?
+  discordThreadId     String?
+  /// Letzte aus Discord übernommene Nachricht (REST-Abgleich ohne Worker)
+  lastSyncedMessageId String?
+  lastSyncAt          DateTime?
+
+  // Zeiten für Automatik & Statistik
+  firstResponseAt     DateTime?
+  lastPlayerAt        DateTime?
+  lastTeamAt          DateTime?
+  /// Seit wann "wartet auf Spieler" (Auto-Close)
+  waitingSince        DateTime?
+  autoCloseWarnedAt   DateTime?
+  resolvedAt          DateTime?
+  closedAt            DateTime?
+  closedReason        String?
+
+  // Bewertung nach dem Schließen
+  rating              Int?
+  ratingComment       String?
+  ratedAt             DateTime?
+
+  /// Transkript (Markdown), beim Schließen erzeugt
+  transcript          String?
+  isTest              Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  messages    TicketMessage[]
+  events      TicketEvent[]
+  attachments Attachment[]
+
+  @@index([creatorId])
+  @@index([status, updatedAt])
+  @@index([claimedById])
+  @@index([discordThreadId])
+  @@map("sup_tickets")
+}
+
+model TicketMessage {
+  id              String         @id @default(cuid()) @map("_id")
+  ticketId        String
+  ticket          Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId        String?
+  author          User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  /// Name zum Zeitpunkt der Nachricht (auch für Discord-Autoren ohne Portal-Konto)
+  authorName      String
+  authorDiscordId String?
+  kind            MessageKind
+  body            String
+  source          Source         @default(WEB)
+  discordMessageId String?
+  /// DM an den Spieler (bei Team-Antworten)
+  deliveryStatus  DeliveryStatus @default(NOT_SENT)
+  deliveryError   String?
+  createdAt       DateTime       @default(now())
+
+  attachments Attachment[]
+  outboxJobs  OutboxJob[]
+
+  @@index([ticketId, createdAt])
+  @@index([discordMessageId])
+  @@map("sup_ticket_messages")
+}
+
+/// Idempotenz für den Discord-Abgleich: _id = Discord-Message-ID (atomar eindeutig)
+model SyncedDiscordMessage {
+  id        String   @id @map("_id")
+  ticketId  String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("sup_synced_discord_messages")
+}
+
+/// Verlauf: Status, Claim, Priorität, Weitergabe …
+model TicketEvent {
+  id        String   @id @default(cuid()) @map("_id")
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actorName String?
+  type      String
+  from      String?
+  to        String?
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([type, createdAt])
+  @@map("sup_ticket_events")
+}
+
+/// Bild (WebP ohne Metadaten in der DB – Vercel hat kein Dateisystem) oder Clip-Link
+model Attachment {
+  id              String         @id @default(cuid()) @map("_id")
+  ownerId         String
+  owner           User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind            AttachmentKind
+  ticketId        String?
+  ticket          Ticket?        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketMessageId String?
+  ticketMessage   TicketMessage? @relation(fields: [ticketMessageId], references: [id], onDelete: Cascade)
+  requestId       String?
+  request         Request?       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  // LINK
+  url             String?
+  provider        String?
+  // IMAGE
+  fileName        String?
+  mime            String?
+  size            Int?
+  width           Int?
+  height          Int?
+  sha256          String?
+  data            Bytes?
+  createdAt       DateTime       @default(now())
+
+  @@index([ticketId])
+  @@index([requestId])
+  @@index([ownerId])
+  @@map("sup_attachments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Anträge
+// ─────────────────────────────────────────────────────────────
+
+model RequestType {
+  id                String    @id @default(cuid()) @map("_id")
+  slug              String    @unique
+  title             String
+  description       String
+  icon              String    @default("file")
+  active            Boolean   @default(true)
+  order             Int       @default(0)
+  /// Formularfelder: [{ key, label, type, required, help, options, max }]
+  fields            Json
+  /// Ab welcher Stufe sichtbar (SUPPORT oder MODERATION)
+  visibleFrom       TeamLevel @default(SUPPORT)
+  /// Ab welcher Stufe darf entschieden werden
+  decideFrom        TeamLevel @default(MODERATION)
+  /// Vier-Augen-Prinzip: Entscheidung braucht Zustimmung einer zweiten Person
+  fourEyes          Boolean   @default(false)
+  /// Auch für vom Discord gebannte Personen sichtbar
+  allowedWhenBanned Boolean   @default(false)
+  /// Pflicht-Checkbox "Ich habe ehrlich geantwortet …"
+  requireHonesty    Boolean   @default(false)
+  /// Nur ein offener Antrag dieser Art gleichzeitig
+  singleOpen        Boolean   @default(true)
+  /// Fragt nach einer Strafe (Ban-ID/Datum, Bannart, wer sie ausgesprochen hat)
+  needsSanction     Boolean   @default(false)
+  /// Mögliche Ergebnisse: [{ key, label, category }]
+  outcomes          Json
+  /// Sperrfrist nach Ablehnung (Tage), Standard
+  cooldownDays      Int       @default(0)
+  /// Sperrfrist je Bannart: { "temporaer": 14, "permanent": 90 }
+  cooldownByBanType Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  requests  Request[]
+  cooldowns Cooldown[]
+
+  @@map("sup_request_types")
+}
+
+model Request {
+  id                String           @id @default(cuid()) @map("_id")
+  /// NVA-2026-0001
+  publicId          String           @unique
+  typeId            String
+  type              RequestType      @relation(fields: [typeId], references: [id])
+  applicantId       String
+  applicant         User             @relation("RequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  /// Antworten { key: value }
+  answers           Json
+  status            RequestStatus    @default(SUBMITTED)
+  source            Source           @default(WEB)
+
+  // Strafe, um die es geht
+  sanctionId        String?
+  sanction          Sanction?        @relation(fields: [sanctionId], references: [id], onDelete: SetNull)
+  banRef            String?
+  banType           String?
+  /// Wer die Strafe ausgesprochen hat – darf nie allein entscheiden
+  issuedByDiscordId String?
+
+  honestyConfirmedAt DateTime?
+
+  // Entscheidung (erst nach gültiger Zustimmung gesetzt)
+  outcomeKey        String?
+  outcomeLabel      String?
+  outcomeCategory   OutcomeCategory?
+  decisionReason    String?
+  decidedAt         DateTime?
+  decidedById       String?
+  approvedById      String?
+  archivedAt        DateTime?
+
+  lastPlayerAt      DateTime?
+  isTest            Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  messages    RequestMessage[]
+  comments    RequestComment[]
+  votes       RequestVote[]
+  decisions   RequestDecision[]
+  attachments Attachment[]
+
+  @@index([applicantId])
+  @@index([typeId, status])
+  @@map("sup_requests")
+}
+
+/// Rückfragen und Antworten zwischen Team und Spieler
+model RequestMessage {
+  id             String         @id @default(cuid()) @map("_id")
+  requestId      String
+  request        Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId       String?
+  author         User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorName     String
+  kind           MessageKind
+  body           String
+  deliveryStatus DeliveryStatus @default(NOT_SENT)
+  deliveryError  String?
+  createdAt      DateTime       @default(now())
+
+  outboxJobs OutboxJob[]
+
+  @@index([requestId, createdAt])
+  @@map("sup_request_messages")
+}
+
+/// Interne Diskussion
+model RequestComment {
+  id        String   @id @default(cuid()) @map("_id")
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@map("sup_request_comments")
+}
+
+model RequestVote {
+  id        String    @id @default(cuid()) @map("_id")
+  requestId String
+  request   Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value     VoteValue
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([requestId, userId])
+  @@map("sup_request_votes")
+}
+
+/// Entscheidungsvorschlag + Zustimmung (Vier-Augen-Prinzip)
+model RequestDecision {
+  id           String         @id @default(cuid()) @map("_id")
+  requestId    String
+  request      Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  proposedById String
+  proposedBy   User           @relation("DecisionProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+  outcomeKey   String
+  reason       String
+  status       DecisionStatus @default(PENDING)
+  approvedById String?
+  approvedBy   User?          @relation("DecisionApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@index([requestId])
+  @@map("sup_request_decisions")
+}
+
+/// Sperrfrist nach Ablehnung
+model Cooldown {
+  id        String      @id @default(cuid()) @map("_id")
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  typeId    String
+  type      RequestType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  banType   String?
+  until     DateTime
+  requestId String?
+  createdAt DateTime    @default(now())
+
+  @@index([userId, typeId])
+  @@map("sup_cooldowns")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Team & Betrieb
+// ─────────────────────────────────────────────────────────────
+
+/// Nachrichtenbausteine mit Platzhaltern
+model MessageTemplate {
+  id              String   @id @default(cuid()) @map("_id")
+  title           String
+  body            String
+  /// ticket | request | all
+  scope           String   @default("all")
+  /// Nur für diese Ticket-Kategorie (leer = alle)
+  ticketCategory  String?
+  /// Nur für diese Antragsart (Slug, leer = alle)
+  requestTypeSlug String?
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("sup_message_templates")
+}
+
+model Setting {
+  key   String @id @map("_id")
+  value Json
+
+  @@map("sup_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid()) @map("_id")
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+  @@map("sup_audit_log")
+}
+
+model AiUsage {
+  id           String   @id @default(cuid()) @map("_id")
+  feature      String
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  costMicroUsd Int
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("sup_ai_usage")
+}
+
+model RateLimit {
+  key     String   @id @map("_id")
+  count   Int
+  resetAt DateTime
+
+  @@map("sup_rate_limits")
+}
+
+/// Kurze exklusive Sperre (z. B. Hintergrundarbeiten höchstens alle 5 Minuten)
+model Lease {
+  key   String   @id @map("_id")
+  until DateTime
+
+  @@map("sup_leases")
+}
+
+model OutboxJob {
+  id               String          @id @default(cuid()) @map("_id")
+  type             OutboxType
+  payload          Json
+  status           OutboxStatus    @default(PENDING)
+  attempts         Int             @default(0)
+  maxAttempts      Int             @default(5)
+  runAt            DateTime        @default(now())
+  lockedAt         DateTime?
+  lastError        String?
+  result           Json?
+  ticketId         String?
+  ticketMessageId  String?
+  ticketMessage    TicketMessage?  @relation(fields: [ticketMessageId], references: [id], onDelete: SetNull)
+  requestMessageId String?
+  requestMessage   RequestMessage? @relation(fields: [requestMessageId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([status, runAt])
+  @@map("sup_outbox")
+}
+
+model Counter {
+  key   String @id @map("_id")
+  value Int
+
+  @@map("sup_counters")
+}

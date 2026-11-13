@@ -1,0 +1,61 @@
+diff --git a/.env.example b/.env.example
+index 3274b53..fccd8e8 100644
+--- a/.env.example
++++ b/.env.example
+@@ -39,6 +39,9 @@ TEAM_ROLE_ID=""
+ ADMIN_ROLE_ID=""
+ # Channel für "Neue Bewerbung"-Posts (optional)
+ DISCORD_LOG_CHANNEL_ID=""
++# Läuft der Bot über das Support-Center (ein Bot, zwei Apps)? Dann dessen
++# Interactions-URL hier eintragen – das Portal überschreibt sie dann nie.
++# DISCORD_INTERACTIONS_ROUTER_URL="https://support.nordverkehr.xyz/api/discord/interactions"
+ # Wie lange eine Rollenprüfung gecacht wird (Sekunden)
+ ROLE_CACHE_TTL_SECONDS="60"
+ 
+diff --git a/src/app/actions/admin.ts b/src/app/actions/admin.ts
+index 8eeaef7..2c59673 100644
+--- a/src/app/actions/admin.ts
++++ b/src/app/actions/admin.ts
+@@ -374,15 +374,22 @@ export async function setupInteractionsAction(): Promise<ActionResult<{ message:
+   if (!token) return { ok: false, error: "DISCORD_BOT_TOKEN fehlt." };
+   const { publicEnv } = await import("@/lib/env");
+   if (!/^https:\/\//.test(publicEnv.appUrl)) return { ok: false, error: "Geht nur auf der Live-Seite (https)." };
+-  const url = `${publicEnv.appUrl}/api/discord/interactions`;
+-  const res = await fetch("https://discord.com/api/v10/applications/@me", {
+-    method: "PATCH",
+-    headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
+-    body: JSON.stringify({ interactions_endpoint_url: url }),
+-  });
+-  if (!res.ok) {
+-    const err = (await res.json().catch(() => null)) as { message?: string; errors?: unknown } | null;
+-    return { ok: false, error: `Discord hat die URL abgelehnt (${res.status}): ${err?.message ?? "unbekannt"}. ${JSON.stringify(err?.errors ?? "").slice(0, 200)}` };
++  // Läuft der Bot über das Support-Center (ein Bot, zwei Apps), ist DORT die
++  // Interactions-URL eingetragen und Interaktionen mit `nv:` werden hierher
++  // weitergereicht. Dann die URL NICHT überschreiben – sonst wären alle
++  // Support-Knöpfe tot. Siehe README des Support-Centers.
++  const router = process.env.DISCORD_INTERACTIONS_ROUTER_URL;
++  const url = router || `${publicEnv.appUrl}/api/discord/interactions`;
++  if (!router) {
++    const res = await fetch("https://discord.com/api/v10/applications/@me", {
++      method: "PATCH",
++      headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
++      body: JSON.stringify({ interactions_endpoint_url: url }),
++    });
++    if (!res.ok) {
++      const err = (await res.json().catch(() => null)) as { message?: string; errors?: unknown } | null;
++      return { ok: false, error: `Discord hat die URL abgelehnt (${res.status}): ${err?.message ?? "unbekannt"}. ${JSON.stringify(err?.errors ?? "").slice(0, 200)}` };
++    }
+   }
+   await saveSettings({ "discord.claimButton": true }, user.id);
+   await audit("settings.update", { actorId: user.id, meta: { interactionsEndpoint: url } });
+@@ -391,7 +398,9 @@ export async function setupInteractionsAction(): Promise<ActionResult<{ message:
+   const cmd = await registerStatusCommand(token);
+   return {
+     ok: true,
+-    data: { message: `Eingerichtet: ${url}. Neue Bewerbungen bekommen jetzt den Knopf „Übernehmen“. ${cmd.ok ? "Befehl /bewerbung ist registriert." : `Befehl /bewerbung: ${cmd.error}`}` },
++    data: {
++      message: `${router ? `Interaktionen laufen über das Support-Center (${url}) – URL bleibt unverändert.` : `Eingerichtet: ${url}.`} Neue Bewerbungen bekommen jetzt den Knopf „Übernehmen“. ${cmd.ok ? "Befehl /bewerbung ist registriert." : `Befehl /bewerbung: ${cmd.error}`}`,
++    },
+   };
+ }
+ 

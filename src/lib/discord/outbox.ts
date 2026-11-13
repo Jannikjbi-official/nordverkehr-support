@@ -1,0 +1,103 @@
+/**
+ * Zustellung von Discord-Nachrichten über eine Outbox-Tabelle.
+ *
+ * Jede DM, jeder Thread-Post und jeder Log-Eintrag wird zuerst gespeichert und
+ * dann zugestellt – direkt nach der Aktion (via `after()`) und, falls das
+ * scheitert, mit Backoff erneut durch die Hintergrundarbeiten (Cron bzw.
+ * gedrosselt bei Seitenaufrufen – es gibt keinen Dauer-Worker).
+ */
+import type { RESTPostAPIChannelMessageJSONBody } from "discord-api-types/v10";
+import { classifyDiscordError, type DiscordApi } from "@/lib/discord/client";
+
+export type DmPurpose = "ticket_reply" | "ticket_status" | "ticket_reminder" | "request_message" | "request_decision" | "request_link";
+
+export type OutboxPayload =
+  | { type: "DM"; discordUserId: string; message: RESTPostAPIChannelMessageJSONBody; purpose: DmPurpose }
+  | { type: "CHANNEL_MESSAGE"; channelId: string; message: RESTPostAPIChannelMessageJSONBody; kind?: "log" | "panel" }
+  | { type: "THREAD_MESSAGE"; threadId: string; message: RESTPostAPIChannelMessageJSONBody; unarchive?: boolean }
+  | { type: "THREAD_UPDATE"; threadId: string; name?: string; archived?: boolean; locked?: boolean };
+
+/** Test-/Seed-Nutzer haben keine echten Discord-IDs (beginnen mit 0) */
+export const isTestDiscordId = (id: string) => /^0\d+$/.test(id);
+
+export interface OutboxJobLike {
+  id: string;
+  type: OutboxPayload["type"];
+  payload: unknown;
+  attempts: number;
+  maxAttempts: number;
+  ticketMessageId: string | null;
+  requestMessageId: string | null;
+  ticketId: string | null;
+}
+
+export type JobOutcome =
+  | { kind: "done"; result: Record<string, string> }
+  | { kind: "retry"; error: string; runAt: Date }
+  | { kind: "failed"; error: string; dmClosed: boolean };
+
+export interface OutboxStore {
+  complete(job: OutboxJobLike, result: Record<string, string>): Promise<void>;
+  reschedule(job: OutboxJobLike, error: string, runAt: Date): Promise<void>;
+  fail(job: OutboxJobLike, error: string, opts: { dmClosed: boolean }): Promise<void>;
+}
+
+/** 30 s, 2 min, 10 min, 30 min, 2 h … */
+export function backoffMs(attempt: number): number {
+  const steps = [30_000, 120_000, 600_000, 1_800_000, 7_200_000];
+  return steps[Math.min(attempt, steps.length - 1)];
+}
+
+export async function executeJob(job: OutboxJobLike, api: DiscordApi, now: () => Date = () => new Date()): Promise<JobOutcome> {
+  const payload = job.payload as OutboxPayload;
+  try {
+    switch (payload.type) {
+      case "DM": {
+        if (isTestDiscordId(payload.discordUserId)) return { kind: "done", result: { skipped: "test" } };
+        const channelId = await api.openDm(payload.discordUserId);
+        const messageId = await api.postMessage(channelId, payload.message);
+        return { kind: "done", result: { channelId, messageId } };
+      }
+      case "CHANNEL_MESSAGE": {
+        const messageId = await api.postMessage(payload.channelId, payload.message);
+        return { kind: "done", result: { messageId } };
+      }
+      case "THREAD_MESSAGE": {
+        // Archivierte Threads nehmen keine Nachrichten an → vorher öffnen
+        if (payload.unarchive) await api.updateThread(payload.threadId, { archived: false }).catch(() => {});
+        const messageId = await api.postMessage(payload.threadId, payload.message);
+        return { kind: "done", result: { messageId } };
+      }
+      case "THREAD_UPDATE": {
+        await api.updateThread(payload.threadId, { name: payload.name, archived: payload.archived, locked: payload.locked });
+        return { kind: "done", result: { threadId: payload.threadId } };
+      }
+      default:
+        return { kind: "failed", error: "Unbekannter Job-Typ", dmClosed: false };
+    }
+  } catch (err) {
+    const e = classifyDiscordError(err);
+    if (e.kind === "dm_closed") return { kind: "failed", error: e.message, dmClosed: true };
+    const nextAttempt = job.attempts + 1;
+    if (e.retryable && nextAttempt < job.maxAttempts) {
+      return { kind: "retry", error: e.message, runAt: new Date(now().getTime() + backoffMs(job.attempts)) };
+    }
+    return { kind: "failed", error: e.message, dmClosed: false };
+  }
+}
+
+export async function processJob(job: OutboxJobLike, api: DiscordApi, store: OutboxStore, now?: () => Date) {
+  const outcome = await executeJob(job, api, now);
+  switch (outcome.kind) {
+    case "done":
+      await store.complete(job, outcome.result);
+      break;
+    case "retry":
+      await store.reschedule(job, outcome.error, outcome.runAt);
+      break;
+    case "failed":
+      await store.fail(job, outcome.error, { dmClosed: outcome.dmClosed });
+      break;
+  }
+  return outcome;
+}

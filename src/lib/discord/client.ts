@@ -1,0 +1,237 @@
+import { DiscordAPIError, HTTPError, RateLimitError, REST } from "@discordjs/rest";
+import {
+  Routes,
+  type APIChannel,
+  type APIGuildMember,
+  type APIMessage,
+  type RESTPostAPIChannelMessageJSONBody,
+} from "discord-api-types/v10";
+
+/** Discord-Fehlercodes, die wir gezielt behandeln. */
+export const DISCORD_CODES = {
+  UNKNOWN_MEMBER: 10007,
+  UNKNOWN_USER: 10013,
+  UNKNOWN_CHANNEL: 10003,
+  MISSING_ACCESS: 50001,
+  CANNOT_DM_USER: 50007,
+  MISSING_PERMISSIONS: 50013,
+} as const;
+
+export type DiscordErrorKind =
+  | "not_found"
+  | "dm_closed"
+  | "forbidden"
+  | "rate_limited"
+  | "server"
+  | "network"
+  | "config";
+
+export class DiscordRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly kind: DiscordErrorKind,
+    public readonly code?: number | string,
+    public readonly status?: number,
+  ) {
+    super(message);
+    this.name = "DiscordRequestError";
+  }
+
+  /** Lohnt sich ein erneuter Versuch? */
+  get retryable() {
+    return this.kind === "rate_limited" || this.kind === "server" || this.kind === "network";
+  }
+}
+
+/** Übersetzt beliebige Fehler aus @discordjs/rest in einen DiscordRequestError. */
+export function classifyDiscordError(err: unknown): DiscordRequestError {
+  if (err instanceof DiscordRequestError) return err;
+  if (err instanceof DiscordAPIError) {
+    const code = err.code;
+    if (code === DISCORD_CODES.CANNOT_DM_USER) {
+      return new DiscordRequestError("Der Nutzer hat Direktnachrichten deaktiviert.", "dm_closed", code, err.status);
+    }
+    if (code === DISCORD_CODES.UNKNOWN_CHANNEL) {
+      return new DiscordRequestError("Kanal nicht gefunden (10003) – ID falsch oder der Bot sieht den Kanal nicht.", "not_found", code, err.status);
+    }
+    if (code === DISCORD_CODES.UNKNOWN_MEMBER || code === DISCORD_CODES.UNKNOWN_USER || err.status === 404) {
+      return new DiscordRequestError(`Nicht gefunden (${code}).`, "not_found", code, err.status);
+    }
+    if (code === DISCORD_CODES.MISSING_ACCESS) {
+      return new DiscordRequestError("Kein Zugriff (50001) – der Bot ist nicht im Kanal oder darf ihn nicht sehen.", "forbidden", code, err.status);
+    }
+    if (code === DISCORD_CODES.MISSING_PERMISSIONS) {
+      return new DiscordRequestError("Fehlende Rechte (50013) – der Bot braucht „Nachrichten senden“ in diesem Kanal.", "forbidden", code, err.status);
+    }
+    if (err.status === 401 || err.status === 403) {
+      return new DiscordRequestError(`Keine Berechtigung (${code}): ${err.message}`.slice(0, 500), "forbidden", code, err.status);
+    }
+    if (err.status === 429) return new DiscordRequestError("Rate-Limit.", "rate_limited", code, err.status);
+    if (err.status >= 500) return new DiscordRequestError(`Discord-Serverfehler ${err.status}.`, "server", code, err.status);
+    // z. B. 50035 "Invalid Form Body" – Discord nennt das fehlerhafte Feld
+    return new DiscordRequestError(`${err.message} (${code})`.slice(0, 800), "forbidden", code, err.status);
+  }
+  if (err instanceof RateLimitError) return new DiscordRequestError("Rate-Limit.", "rate_limited", undefined, 429);
+  if (err instanceof HTTPError) {
+    return new DiscordRequestError(`HTTP ${err.status}`, err.status >= 500 ? "server" : "forbidden", undefined, err.status);
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return new DiscordRequestError(message, "network");
+}
+
+export interface GuildMemberInfo {
+  roles: string[];
+  joinedAt: Date | null;
+  nick: string | null;
+}
+
+/** Schlanke Sicht auf eine Discord-Nachricht (für den Thread-Abgleich). */
+export interface DiscordMessageInfo {
+  id: string;
+  channelId: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorIsBot: boolean;
+  /** 0 = normale Nachricht, 19 = Antwort; alles andere (System) wird ignoriert */
+  type: number;
+  createdAt: Date;
+  attachments: { url: string; filename: string; contentType: string | null }[];
+}
+
+/** Schmale Schnittstelle zu Discord – im Test leicht zu ersetzen. */
+export interface DiscordApi {
+  /** null = Nutzer ist nicht auf dem Server. Wirft bei API-/Netzwerkfehlern. */
+  getMember(guildId: string, userId: string): Promise<GuildMemberInfo | null>;
+  /** Bann auf dem Server (null = nicht gebannt). Wirft, wenn der Bot keine Banns lesen darf. */
+  getBan(guildId: string, userId: string): Promise<{ reason: string | null } | null>;
+  openDm(userId: string): Promise<string>;
+  postMessage(channelId: string, body: RESTPostAPIChannelMessageJSONBody): Promise<string>;
+  editMessage(channelId: string, messageId: string, body: RESTPostAPIChannelMessageJSONBody): Promise<void>;
+  deleteMessage(channelId: string, messageId: string): Promise<void>;
+  /** Privaten Thread im Channel anlegen (ohne Startnachricht). Gibt die Thread-ID zurück. */
+  createPrivateThread(channelId: string, name: string): Promise<string>;
+  addThreadMember(threadId: string, userId: string): Promise<void>;
+  /** Thread umbenennen/archivieren/sperren */
+  updateThread(threadId: string, patch: { name?: string; archived?: boolean; locked?: boolean }): Promise<void>;
+  /** Nachrichten nach `after` (älteste zuerst), max. 100 */
+  getMessages(channelId: string, opts: { after?: string; limit?: number }): Promise<DiscordMessageInfo[]>;
+}
+
+/** DM-Kanal-ID pro Nutzer (ändert sich bei Discord nicht) – spart einen Aufruf pro DM */
+const dmChannels = new Map<string, string>();
+
+const wrap = async <T>(fn: () => Promise<T>): Promise<T> => {
+  try {
+    return await fn();
+  } catch (err) {
+    throw classifyDiscordError(err);
+  }
+};
+
+export function toMessageInfo(m: APIMessage): DiscordMessageInfo {
+  return {
+    id: m.id,
+    channelId: m.channel_id,
+    content: m.content ?? "",
+    authorId: m.author.id,
+    authorName: (m as APIMessage & { member?: { nick?: string | null } }).member?.nick ?? m.author.global_name ?? m.author.username,
+    authorIsBot: !!m.author.bot || !!m.webhook_id,
+    type: m.type,
+    createdAt: new Date(m.timestamp),
+    attachments: (m.attachments ?? []).map((a) => ({ url: a.url, filename: a.filename, contentType: a.content_type ?? null })),
+  };
+}
+
+export function createDiscordApi(token: string, opts: { timeoutMs?: number } = {}): DiscordApi {
+  const rest = new REST({ version: "10", timeout: opts.timeoutMs ?? 8000, retries: 2 }).setToken(token);
+
+  return {
+    async getMember(guildId, userId) {
+      try {
+        const m = (await rest.get(Routes.guildMember(guildId, userId))) as APIGuildMember;
+        return { roles: m.roles, joinedAt: m.joined_at ? new Date(m.joined_at) : null, nick: m.nick ?? null };
+      } catch (err) {
+        const e = classifyDiscordError(err);
+        if (e.kind === "not_found") return null;
+        throw e;
+      }
+    },
+    async getBan(guildId, userId) {
+      try {
+        const ban = (await rest.get(Routes.guildBan(guildId, userId))) as { reason: string | null };
+        return { reason: ban.reason ?? null };
+      } catch (err) {
+        const e = classifyDiscordError(err);
+        if (e.kind === "not_found") return null;
+        throw e;
+      }
+    },
+    async openDm(userId) {
+      const known = dmChannels.get(userId);
+      if (known) return known;
+      const ch = await wrap(() => rest.post(Routes.userChannels(), { body: { recipient_id: userId } }) as Promise<APIChannel>);
+      if (dmChannels.size > 2000) dmChannels.clear();
+      dmChannels.set(userId, ch.id);
+      return ch.id;
+    },
+    async postMessage(channelId, body) {
+      const msg = await wrap(() => rest.post(Routes.channelMessages(channelId), { body }) as Promise<APIMessage>);
+      return msg.id;
+    },
+    async editMessage(channelId, messageId, body) {
+      await wrap(() => rest.patch(Routes.channelMessage(channelId, messageId), { body }));
+    },
+    async deleteMessage(channelId, messageId) {
+      try {
+        await rest.delete(Routes.channelMessage(channelId, messageId));
+      } catch (err) {
+        const e = classifyDiscordError(err);
+        if (e.kind === "not_found") return;
+        throw e;
+      }
+    },
+    async createPrivateThread(channelId, name) {
+      // type 12 = privater Thread; invitable false = nur Mods dürfen weitere Leute hinzufügen
+      const ch = await wrap(
+        () => rest.post(Routes.threads(channelId), { body: { name: name.slice(0, 100), type: 12, invitable: false, auto_archive_duration: 10080 } }) as Promise<APIChannel>,
+      );
+      return ch.id;
+    },
+    async addThreadMember(threadId, userId) {
+      await wrap(() => rest.put(Routes.threadMembers(threadId, userId)));
+    },
+    async updateThread(threadId, patch) {
+      try {
+        await rest.patch(Routes.channel(threadId), { body: { ...(patch.name ? { name: patch.name.slice(0, 100) } : {}), ...(patch.archived !== undefined ? { archived: patch.archived } : {}), ...(patch.locked !== undefined ? { locked: patch.locked } : {}) } });
+      } catch (err) {
+        const e = classifyDiscordError(err);
+        if (e.kind === "not_found") return; // Thread wurde gelöscht
+        throw e;
+      }
+    },
+    async getMessages(channelId, o) {
+      const query = new URLSearchParams({ limit: String(Math.min(100, o.limit ?? 100)) });
+      if (o.after) query.set("after", o.after);
+      const list = await wrap(() => rest.get(Routes.channelMessages(channelId), { query }) as Promise<APIMessage[]>);
+      // Discord liefert neueste zuerst → älteste zuerst sortieren
+      return list.map(toMessageInfo).sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+    },
+  };
+}
+
+let singleton: DiscordApi | null = null;
+
+/** Prozessweite Discord-Instanz (Bot-Token aus der .env). */
+export function getDiscordApi(): DiscordApi {
+  if (singleton) return singleton;
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) throw new DiscordRequestError("DISCORD_BOT_TOKEN fehlt.", "config");
+  singleton = createDiscordApi(token);
+  return singleton;
+}
+
+/** Nur für Tests. */
+export function setDiscordApiForTests(api: DiscordApi | null) {
+  singleton = api;
+}
