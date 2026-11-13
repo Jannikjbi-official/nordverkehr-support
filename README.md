@@ -44,6 +44,7 @@ Hilfe-Center, Tickets und Anträge für **Nordverkehr** (Hamburg-Roleplay, Start
 - Ehrlichkeits-Checkbox, nur ein offener Antrag je Art, Sperrfrist nach Ablehnung.
 - **Vier-Augen-Prinzip:** Vorschlag + Zustimmung einer zweiten Person (Moderation/Leitung). Wer die Strafe ausgesprochen hat, zählt nie als zweite Person.
 - Ergebnisse mit Pflicht-Begründung, die der Spieler sieht; interne Diskussion, Pro/Contra-Abstimmung, Bausteine je Antragsart, Audit-Log, optional Discord-Log-Channel.
+- **Bescheid als PDF:** Wird eine Namensänderung angenommen, bekommt der Spieler im Portal (und per Hinweis in der DM) einen Bescheid zum Herunterladen, den er ingame im Rathaus abgibt. Jeder Bescheid hat einen Prüfcode; das Rathaus prüft die Echtheit öffentlich unter `/bescheid/pruefen` (zeigt nur Charakternamen und Datum). Der Code hängt an `AUTH_SECRET` – wird der geändert, werden alte Codes ungültig. Weitere Antragsarten: `CERTIFICATE_TYPE_SLUGS` in `src/lib/requests/certificate.ts`.
 - Schnittstelle für Bann-Daten aus dem Bann-System (z. B. txAdmin) vorbereitet: `src/lib/requests/ban-provider.ts`.
 
 ### Team-Bereich

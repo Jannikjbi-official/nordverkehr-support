@@ -16,6 +16,8 @@ import { listTeamMembers } from "@/lib/team/queries";
 import { Avatar, Notice, RequestStatusBadge, formatDay, formatDayTime, formatRelative } from "@/components/ui";
 import { MessageList } from "@/components/tickets/MessageList";
 import { CommentBox, DecisionPanel, RequestComposer, RequestSideActions, VoteButtons } from "@/components/requests/RequestTeamPanel";
+import { hasCertificate, verificationCode } from "@/lib/requests/certificate";
+import { certificateUrl } from "@/lib/requests/certificate-db";
 
 export const metadata: Metadata = { title: "Antrag" };
 
@@ -78,6 +80,15 @@ export default async function TeamRequestPage({ params }: { params: Promise<{ id
       {r.decidedAt && r.outcomeLabel && (
         <Notice tone="success" title={`Entschieden: ${r.outcomeLabel}`} className="mt-4">
           {formatDayTime(r.decidedAt)} · {r.decisionReason}
+          {hasCertificate(r) && (
+            <span className="block mt-2">
+              <a href={`${certificateUrl(r.id)}?ansehen=1`} target="_blank" rel="noopener" className="underline font-medium">
+                Bescheid (PDF) ansehen
+              </a>
+              {" · Prüfcode: "}
+              <code className="font-mono">{verificationCode(r.id)}</code>
+            </span>
+          )}
         </Notice>
       )}
 

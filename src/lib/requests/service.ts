@@ -19,6 +19,7 @@ import { clipProvider } from "@/lib/uploads/links";
 import { enqueue } from "@/lib/discord/outbox-db";
 import { isTestDiscordId } from "@/lib/discord/outbox";
 import { buildLogLine, buildRequestDm } from "@/lib/discord/messages";
+import { hasCertificate } from "@/lib/requests/certificate";
 
 const name = (u: Pick<User, "globalName" | "username">) => u.globalName || u.username;
 export const requestUrl = (id: string) => `${publicEnv.appUrl}/antraege/${id}`;
@@ -287,8 +288,11 @@ async function finalize(requestId: string, decisionId: string, proposer: User, a
     const days = cooldownDaysFor(r.type, r.banType);
     if (days > 0) await db.cooldown.create({ data: { userId: r.applicantId, typeId: r.typeId, banType: r.banType, until: new Date(now.getTime() + days * 86_400_000), requestId: r.id } });
   }
+  const certNote = hasCertificate({ status: "DECIDED", outcomeCategory: outcome.category, decidedAt: now, type: r.type })
+    ? "\n\n📄 Dein Bescheid fürs Rathaus liegt im Portal bei diesem Antrag als PDF bereit. Lade ihn herunter und gib ihn ingame im Rathaus ab – dort bekommst du neue Papiere."
+    : "";
   const msg = await db.requestMessage.create({
-    data: { requestId: r.id, authorName: "System", kind: "SYSTEM", body: `Entscheidung: ${outcome.label}\n\nBegründung: ${d.reason}`, deliveryStatus: r.applicant.dmOptOut ? "NOT_SENT" : "PENDING" },
+    data: { requestId: r.id, authorName: "System", kind: "SYSTEM", body: `Entscheidung: ${outcome.label}\n\nBegründung: ${d.reason}${certNote}`, deliveryStatus: r.applicant.dmOptOut ? "NOT_SENT" : "PENDING" },
   });
   await audit("request.decide", {
     actorId: approver?.id ?? proposer.id,
@@ -298,7 +302,7 @@ async function finalize(requestId: string, decisionId: string, proposer: User, a
   });
 
   const jobIds: string[] = [];
-  const dm = await dmApplicant(r.applicant, { publicId: r.publicId, typeTitle: r.type.title, title: `Entscheidung: ${outcome.label}`, body: `**Begründung:**\n${d.reason}`, requestId: r.id }, msg.id);
+  const dm = await dmApplicant(r.applicant, { publicId: r.publicId, typeTitle: r.type.title, title: `Entscheidung: ${outcome.label}`, body: `**Begründung:**\n${d.reason}${certNote}`, requestId: r.id }, msg.id);
   if (dm) jobIds.push(dm);
   else await db.requestMessage.update({ where: { id: msg.id }, data: { deliveryStatus: "NOT_SENT" } });
 

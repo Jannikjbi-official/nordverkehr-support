@@ -176,6 +176,26 @@ describe("Gebannte Spieler & Sperrfristen", () => {
     expect(elig.ok).toBe(false);
     expect(elig.ok === false && elig.reason).toContain("Sperrfrist");
   });
+
+  it("Angenommene Namensänderung: Bescheid als PDF nur für Antragsteller/Team, Prüfcode gültig", async () => {
+    const lena = await m.db.user.create({ data: { discordId: "666666666666666666", username: "lena", globalName: "Lena", discordCreatedAt: new Date(), inGuild: true } });
+    const { request } = await m.requests.submitRequest({ user: lena, banned: false, typeSlug: "namensaenderung", answers: { current_name: "Lena Brandt", new_name: "Lena Ahrens", reason: "Heirat im RP mit Tom Ahrens." }, honesty: false });
+    const jonas = await viewer("jonas.support");
+    const r = await m.requests.proposeDecision(jonas.v, jonas.u, request.id, "angenommen", "Passt, Heirat ist im RP belegt.");
+    expect(r.decided).toBe(true);
+    const cert = await import("@/lib/requests/certificate-db");
+    const { verificationCode } = await import("@/lib/requests/certificate");
+    const asPlayer = await cert.certificatePdfFor(request.id, lena, { userId: lena.id, discordId: lena.discordId, teamLevel: "NONE" });
+    expect(asPlayer && Buffer.from(asPlayer.pdf.slice(0, 5)).toString()).toBe("%PDF-");
+    const mia = await user("mia.elbe");
+    expect(await cert.certificatePdfFor(request.id, mia, { userId: mia.id, discordId: mia.discordId, teamLevel: "NONE" })).toBeNull();
+    expect(await cert.certificatePdfFor(request.id, jonas.u, jonas.v)).not.toBeNull();
+    const msgs = await m.db.requestMessage.findMany({ where: { requestId: request.id, kind: "SYSTEM" } });
+    expect(msgs.some((x) => x.body.includes("Rathaus"))).toBe(true);
+    const ok = await cert.verifyCertificate(request.publicId.toLowerCase(), verificationCode(request.id).toLowerCase());
+    expect(ok).toMatchObject({ ok: true, currentName: "Lena Brandt", newName: "Lena Ahrens" });
+    expect(await cert.verifyCertificate(request.publicId, "AAAAA-AAAAA")).toEqual({ ok: false });
+  });
 });
 
 describe("Tickets: Web + DM (ohne Discord-Threads)", () => {

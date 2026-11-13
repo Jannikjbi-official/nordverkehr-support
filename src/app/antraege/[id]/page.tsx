@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Scales } from "@phosphor-icons/react/ssr";
+import { ArrowLeft, FilePdf, Scales } from "@phosphor-icons/react/ssr";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
 import { displayAnswers, isOpen, parseFields } from "@/lib/requests/view";
 import { Container, Notice, RequestStatusBadge, formatDay, formatDayTime } from "@/components/ui";
 import { MessageList } from "@/components/tickets/MessageList";
 import { RequestAnswerForm } from "@/components/requests/RequestAnswerForm";
+import { hasCertificate } from "@/lib/requests/certificate";
+import { certificateUrl } from "@/lib/requests/certificate-db";
 
 export const metadata: Metadata = { title: "Antrag", robots: { index: false } };
 
@@ -69,6 +71,23 @@ export default async function PlayerRequestPage({ params, searchParams }: { para
               </h2>
               <p className="text-sm text-muted mt-1">{formatDayTime(r.decidedAt)}</p>
               <p className="mt-4 whitespace-pre-line">{r.decisionReason}</p>
+              {hasCertificate(r) && (
+                <div className="mt-5 rounded-xl border border-line p-4 flex flex-wrap items-center gap-4">
+                  <FilePdf size={32} className="text-red-text shrink-0" aria-hidden />
+                  <div className="flex-1 min-w-[12rem]">
+                    <p className="font-semibold">Dein Bescheid fürs Rathaus</p>
+                    <p className="text-sm text-muted">Lade ihn herunter und gib ihn ingame im Rathaus ab – dort bekommst du neue Papiere auf deinen neuen Namen.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={certificateUrl(r.id)} className="nv-btn nv-btn-primary nv-btn-sm" download>
+                      <FilePdf size={14} aria-hidden /> PDF herunterladen
+                    </a>
+                    <a href={`${certificateUrl(r.id)}?ansehen=1`} target="_blank" rel="noopener" className="nv-btn nv-btn-ghost nv-btn-sm">
+                      Ansehen
+                    </a>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

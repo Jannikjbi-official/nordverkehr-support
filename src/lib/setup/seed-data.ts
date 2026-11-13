@@ -302,5 +302,5 @@ export const TEMPLATES: SeedTemplate[] = [
   },
   { scope: "request", requestTypeSlug: "einspruch", title: "Einspruch: Clip nötig", body: "Moin {name},\n\num deinen Einspruch fair zu prüfen, brauchen wir einen Clip der Situation (YouTube, Twitch oder Medal). Hast du einen? Dann schick ihn bitte hier als Antwort." },
   { scope: "request", requestTypeSlug: "rueckerstattung", title: "Rückerstattung: Beweis fehlt", body: "Moin {name},\n\nohne Beweis können wir leider nichts erstatten. Hast du einen Clip oder Screenshots, auf denen man den Verlust sieht? Dann gern nachreichen." },
-  { scope: "request", requestTypeSlug: "namensaenderung", title: "Namensänderung angenommen", body: "Moin {name},\n\ndie Namensänderung ist durch. Ingame wird sie beim nächsten Einloggen übernommen bzw. von einem Teammitglied eingetragen – sag Bescheid, falls nicht.\n\nGruß, {teammitglied}" },
+  { scope: "request", requestTypeSlug: "namensaenderung", title: "Namensänderung angenommen", body: "Moin {name},\n\ndie Namensänderung ist durch. Deinen Bescheid (PDF) findest du im Portal bei diesem Antrag – lade ihn herunter und gib ihn ingame im Rathaus ab, dort bekommst du neue Papiere auf den neuen Namen.\n\nGruß, {teammitglied}" },
 ];
