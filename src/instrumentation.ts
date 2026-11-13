@@ -6,8 +6,8 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
-  const { DATABASE_URL_KEYS } = await import("@/lib/db");
-  if (!DATABASE_URL_KEYS.some((k) => process.env[k])) return;
+  const { findDatabaseUrlKey } = await import("@/lib/db");
+  if (!findDatabaseUrlKey()) return;
   try {
     const { db } = await import("@/lib/db");
     const { ensureBaseDataOnce } = await import("@/lib/setup/base-seed");

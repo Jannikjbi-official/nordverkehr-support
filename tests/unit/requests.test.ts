@@ -87,4 +87,8 @@ describe("Eigene Datenbank", () => {
       "mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?w=majority",
     );
   });
+  it("erkennt die Variable der Vercel-Atlas-Integration (…_MONGODB_URI)", () => {
+    expect(resolveDatabaseUrl({ DATABASE_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/?w=majority", DATABASE_NAME: "nordverkehr_support" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?w=majority");
+    expect(resolveDatabaseUrl({ STORAGE_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support");
+  });
 });

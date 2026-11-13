@@ -6,9 +6,9 @@
  */
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
-import { DATABASE_URL_KEYS, resolveDatabaseUrl } from "../src/lib/db";
+import { findDatabaseUrlKey, resolveDatabaseUrl } from "../src/lib/db";
 
-if (!DATABASE_URL_KEYS.some((k) => process.env[k]?.trim())) {
+if (!findDatabaseUrlKey()) {
   console.log("[db] Keine Datenbank-URL gesetzt – Schema-Abgleich übersprungen.");
   process.exit(0);
 }

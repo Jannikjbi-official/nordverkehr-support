@@ -25,12 +25,19 @@ export function withDatabaseName(url: string, name = DEFAULT_DB_NAME, force = fa
 }
 
 /** Variablennamen, unter denen die Verbindung stehen darf (Vercel-Atlas-Integration legt eigene an). */
-export const DATABASE_URL_KEYS = ["DATABASE_URL", "DATABASE_URL_MONGODB_URI", "MONGODB_URI"] as const;
+export const DATABASE_URL_KEYS = ["DATABASE_URL", "DATABASE_MONGODB_URI", "DATABASE_URL_MONGODB_URI", "MONGODB_URI"] as const;
+
+/** Name der gesetzten Verbindungs-Variable (bekannte Namen, sonst jede `…_MONGODB_URI` der Atlas-Integration) */
+export function findDatabaseUrlKey(env: Record<string, string | undefined> = process.env): string | null {
+  for (const key of DATABASE_URL_KEYS) if (env[key]?.trim()) return key;
+  return Object.keys(env).find((k) => k.endsWith("_MONGODB_URI") && env[k]?.trim()) ?? null;
+}
 
 /** Verbindungs-URL finden und um den Datenbanknamen ergänzen. */
 export function resolveDatabaseUrl(env: Record<string, string | undefined> = process.env): string {
-  for (const key of DATABASE_URL_KEYS) {
-    const v = env[key];
+  const key = findDatabaseUrlKey(env);
+  {
+    const v = key ? env[key] : undefined;
     // DATABASE_NAME erzwingt die eigene Datenbank – so kann dieselbe Atlas-Verbindung
     // wie beim Bewerbungsportal genutzt werden, ohne dessen Datenbank zu teilen.
     const forced = env.DATABASE_NAME?.trim();
