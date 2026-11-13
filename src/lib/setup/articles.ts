@@ -13,7 +13,7 @@ export interface SeedArticle {
  * die das Team nicht bearbeitet hat, bekommen dann beim nächsten Start den
  * neuen Text (bearbeitete bleiben unangetastet).
  */
-export const SEED_CONTENT_VERSION = 2;
+export const SEED_CONTENT_VERSION = 3;
 
 export const SEED_ARTICLES: SeedArticle[] = [
   {
@@ -676,6 +676,8 @@ Was Nordverkehr ausmacht und wofür wir als Server stehen, findest du im Discord
 ## So läuft deine Einreise ab
 
 Kein Interview, keine Fangfragen – deine Einreise ist **reines RP**. Spiel deinen Charakter, lass dich auf neue Situationen ein und zeig uns, dass du Lust hast, dich in unsere Welt einzufinden. Bleib entspannt und in deiner Rolle – der Rest ergibt sich von selbst.
+
+![Check-in am Flughafen – hier beginnt deine Einreise](/hilfe/einreise-checkin.webp)
 
 Viel Erfolg – wir sehen uns in Hamburg!`,
   },
