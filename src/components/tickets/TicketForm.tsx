@@ -249,7 +249,7 @@ export function TicketForm({ initialCategory, initialSubject, team, needsConsent
         )}
       </div>
 
-      <aside className="space-y-4 lg:sticky lg:top-28 self-start" aria-live="polite">
+      <aside className="space-y-4 self-start" aria-live="polite">
         <div className="nv-card p-5">
           <p className="flex items-center gap-2 font-semibold">
             <Lightbulb size={20} className="text-red-text" aria-hidden /> Vielleicht hilft dir das schon
