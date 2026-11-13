@@ -10,6 +10,8 @@ export interface SelectOption<V extends string = string> {
   hint?: string;
   /** CSS-Klasse für einen farbigen Punkt (z. B. "bg-[var(--tone-success)]") */
   dot?: string;
+  /** Sichtbar, aber nicht auswählbar */
+  disabled?: boolean;
 }
 
 interface Props<V extends string> {
@@ -90,7 +92,7 @@ export function Select<V extends string>({
 
   function choose(i: number) {
     const o = options[i];
-    if (!o) return;
+    if (!o || o.disabled) return;
     setOpen(false);
     button.current?.focus();
     if (o.value !== value) {
@@ -104,7 +106,7 @@ export function Select<V extends string>({
     typed.current = { text: (now - typed.current.at < 700 ? typed.current.text : "") + key.toLowerCase(), at: now };
     const start = open ? active + (typed.current.text.length === 1 ? 1 : 0) : 0;
     const order = [...options.keys()].map((k) => (k + start) % options.length);
-    const hit = order.find((i) => options[i].label.toLowerCase().startsWith(typed.current.text));
+    const hit = order.find((i) => !options[i].disabled && options[i].label.toLowerCase().startsWith(typed.current.text));
     if (hit === undefined) return;
     if (open) setActive(hit);
     else choose(hit);
@@ -207,10 +209,11 @@ export function Select<V extends string>({
                 data-index={i}
                 role="option"
                 aria-selected={isSelected}
+                aria-disabled={o.disabled || undefined}
                 onMouseEnter={() => setActive(i)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => choose(i)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer text-sm ${
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${o.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
                   i === active ? "bg-[color-mix(in_srgb,var(--nv-text)_6%,transparent)]" : ""
                 }`}
               >

@@ -9,7 +9,6 @@ import { getSettings } from "@/lib/settings";
 import { isAiConfigured } from "@/lib/ai/config";
 import { canReceiveTicket, teamCanSeeTicket } from "@/lib/perms";
 import { audit } from "@/lib/audit";
-import { syncTicketFromDiscord } from "@/lib/tickets/sync-db";
 import { categoryLabel, displayFields } from "@/lib/tickets/categories";
 import { viewerOf } from "@/lib/tickets/service";
 import { PRIORITY_LABEL, TICKET_STATUS_LABEL_TEAM } from "@/lib/tickets/status";
@@ -30,7 +29,6 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
   // Beschuldigte/zu niedrige Stufe: wie „nicht vorhanden“ behandeln (kein Hinweis auf Existenz)
   if (!t0 || !teamCanSeeTicket(viewer, t0)) notFound();
   if (t0.sensitivity !== "NORMAL") await audit("ticket.view", { actorId: user.id, targetType: "ticket", targetId: t0.id });
-  await syncTicketFromDiscord(id);
 
   const [t, settings, members, templates, events, otherTickets] = await Promise.all([
     db.ticket.findUniqueOrThrow({
@@ -82,7 +80,7 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
 
       {t.sensitivity === "TEAM_COMPLAINT" && (
         <Notice tone="warn" icon={ShieldWarning} title="Vertraulich" className="mt-4">
-          Beschwerde über ein Teammitglied. Die beschuldigte Person sieht dieses Ticket nicht – weder hier noch in Discord. Bitte nichts weitererzählen.
+          Beschwerde über ein Teammitglied. Die beschuldigte Person sieht dieses Ticket nicht. Bitte nichts weitererzählen.
           {t.accusedDiscordIds.length === 0 && " Noch niemand zugeordnet – deshalb sieht es aktuell nur die Leitung."}
         </Notice>
       )}
@@ -101,7 +99,6 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
               claimedById={t.claimedById}
               meId={user.id}
               isMod={access.isMod}
-              hasThread={!!t.discordThreadId}
               aiEnabled={settings["ai.enabled"] && isAiConfigured()}
               team={[]}
               templates={relevantTemplates.map((x) => ({ id: x.id, title: x.title, body: x.body }))}
@@ -183,7 +180,6 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
             claimedById={t.claimedById}
             meId={user.id}
             isMod={access.isMod}
-            hasThread={!!t.discordThreadId}
             aiEnabled={settings["ai.enabled"] && isAiConfigured()}
             team={members
               .filter((m) => m.id !== user.id)

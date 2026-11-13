@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addNoteAction, addSanctionAction, liftSanctionAction } from "@/app/actions/team-players";
+import { Select } from "@/components/Select";
 
 function useRun() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export function SanctionForm({ subjectId, team }: { subjectId: string; team: { i
         Strafe eintragen
       </button>
     );
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   return (
     <form
       className="mt-4 grid gap-3 sm:grid-cols-2"
@@ -73,27 +74,36 @@ export function SanctionForm({ subjectId, team }: { subjectId: string; team: { i
         );
       }}
     >
-      <label>
-        <span className="nv-field-label">Art</span>
-        <select className="nv-input mt-1" value={f.kind} onChange={set("kind")}>
-          <option value="WARNING">Verwarnung</option>
-          <option value="KICK">Kick</option>
-          <option value="JAIL">Jail</option>
-          <option value="FINE">Geldstrafe</option>
-          <option value="BAN">Bann</option>
-        </select>
-      </label>
-      <label>
-        <span className="nv-field-label">Ausgesprochen von</span>
-        <select className="nv-input mt-1" value={f.issuedByUserId} onChange={set("issuedByUserId")}>
-          <option value="">mir</option>
-          {team.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div>
+        <label htmlFor="sanction-kind" className="nv-field-label">
+          Art
+        </label>
+        <Select
+          id="sanction-kind"
+          className="mt-1"
+          value={f.kind}
+          onChange={(kind) => setF((s) => ({ ...s, kind }))}
+          options={[
+            { value: "WARNING", label: "Verwarnung" },
+            { value: "KICK", label: "Kick" },
+            { value: "JAIL", label: "Jail" },
+            { value: "FINE", label: "Geldstrafe" },
+            { value: "BAN", label: "Bann" },
+          ]}
+        />
+      </div>
+      <div>
+        <label htmlFor="sanction-issuer" className="nv-field-label">
+          Ausgesprochen von
+        </label>
+        <Select
+          id="sanction-issuer"
+          className="mt-1"
+          value={f.issuedByUserId}
+          onChange={(issuedByUserId) => setF((s) => ({ ...s, issuedByUserId }))}
+          options={[{ value: "", label: "mir" }, ...team.map((t) => ({ value: t.id, label: t.name }))]}
+        />
+      </div>
       <label className="sm:col-span-2">
         <span className="nv-field-label">Grund</span>
         <textarea className="nv-input mt-1 min-h-16" value={f.reason} onChange={set("reason")} maxLength={1000} />

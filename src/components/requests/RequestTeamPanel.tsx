@@ -17,6 +17,7 @@ import {
 import { Composer, type ComposerTemplate } from "@/components/team/Composer";
 import type { TemplateVars } from "@/lib/messages/placeholders";
 import { confirmDialog } from "@/components/ConfirmDialog";
+import { Select } from "@/components/Select";
 
 export function RequestComposer({ requestId, templates, vars }: { requestId: string; templates: ComposerTemplate[]; vars: TemplateVars }) {
   const router = useRouter();
@@ -260,18 +261,23 @@ export function RequestSideActions({
           </button>
         )}
         {isMod && open && (
-          <label className="block">
-            <span className="nv-field-label">Strafe ausgesprochen von</span>
-            <select className="nv-input mt-1 text-sm" value={issuerUserId ?? ""} disabled={pending} onChange={(e) => run(() => requestIssuerAction(requestId, e.target.value || null))}>
-              <option value="">unbekannt / nicht zutreffend</option>
-              {team.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <span className="nv-help block mt-1">Diese Person entscheidet nie allein und kann nicht zustimmen.</span>
-          </label>
+          <div>
+            <label htmlFor="request-issuer" className="nv-field-label">
+              Strafe ausgesprochen von
+            </label>
+            <Select
+              id="request-issuer"
+              className="mt-1"
+              value={issuerUserId ?? ""}
+              disabled={pending}
+              describedBy="request-issuer-help"
+              options={[{ value: "", label: "unbekannt / nicht zutreffend" }, ...team.map((t) => ({ value: t.id, label: t.name }))]}
+              onChange={(v) => run(() => requestIssuerAction(requestId, v || null))}
+            />
+            <span id="request-issuer-help" className="nv-help block mt-1">
+              Diese Person entscheidet nie allein und kann nicht zustimmen.
+            </span>
+          </div>
         )}
         {msg && <p className={msg.tone === "ok" ? "text-xs text-muted" : "nv-error"}>{msg.text}</p>}
       </div>

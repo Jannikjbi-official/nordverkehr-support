@@ -8,13 +8,13 @@ import { TICKET_CATEGORIES, fieldsSchema, getCategory, type FieldDef } from "@/l
 import { createTicketAction, suggestArticlesAction } from "@/app/actions/tickets";
 import { AttachmentInput, type AttachmentValue } from "@/components/AttachmentInput";
 import { NvIcon } from "@/components/icons";
+import { Select } from "@/components/Select";
 
 interface Props {
   initialCategory: string;
   initialSubject: string;
   team: { id: string; name: string }[];
   needsConsent: boolean;
-  discordEnabled: boolean;
 }
 
 export function FieldInput({ f, value, onChange, error }: { f: FieldDef; value: unknown; onChange: (v: unknown) => void; error?: string }) {
@@ -49,14 +49,16 @@ export function FieldInput({ f, value, onChange, error }: { f: FieldDef; value: 
       {f.type === "textarea" ? (
         <textarea className="nv-input min-h-28" maxLength={f.max} {...common} value={v} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} required={f.required} />
       ) : f.type === "select" ? (
-        <select className="nv-input" {...common} value={v} onChange={(e) => onChange(e.target.value)} required={f.required}>
-          <option value="">Bitte wählen …</option>
-          {f.options?.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+        <Select
+          id={id}
+          name={f.key}
+          invalid={!!error}
+          describedBy={common["aria-describedby"]}
+          value={v}
+          onChange={(x) => onChange(x)}
+          placeholder="Bitte wählen …"
+          options={[...(f.required ? [] : [{ value: "", label: "Bitte wählen …" }]), ...(f.options ?? []).map((o) => ({ value: o, label: o }))]}
+        />
       ) : (
         <input
           className="nv-input"
@@ -74,7 +76,7 @@ export function FieldInput({ f, value, onChange, error }: { f: FieldDef; value: 
   );
 }
 
-export function TicketForm({ initialCategory, initialSubject, team, needsConsent, discordEnabled }: Props) {
+export function TicketForm({ initialCategory, initialSubject, team, needsConsent }: Props) {
   const router = useRouter();
   const [category, setCategory] = useState(initialCategory);
   const [subject, setSubject] = useState(initialSubject);
@@ -184,7 +186,7 @@ export function TicketForm({ initialCategory, initialSubject, team, needsConsent
                     <ShieldWarning size={18} aria-hidden /> Beschwerde über ein Teammitglied
                   </p>
                   <p className="text-sm text-fg-2">
-                    Dein Ticket sieht nur die Moderation bzw. Leitung. Wer betroffen ist, sieht es nie – auch nicht in Discord (es gibt keinen Thread). Weißt du nicht, wer es war? Dann lass die Auswahl leer, die Leitung kümmert sich.
+                    Dein Ticket sieht nur die Moderation bzw. Leitung. Wer betroffen ist, sieht es nie. Weißt du nicht, wer es war? Dann lass die Auswahl leer, die Leitung kümmert sich.
                   </p>
                   <fieldset>
                     <legend className="nv-field-label">Um wen geht es? (optional)</legend>
@@ -223,7 +225,7 @@ export function TicketForm({ initialCategory, initialSubject, team, needsConsent
                     <Link href="/datenschutz" className="nv-link" target="_blank">
                       Datenschutz-Hinweis
                     </Link>{" "}
-                    gelesen. Meine Angaben werden zur Bearbeitung gespeichert{discordEnabled && !teamComplaint ? " und im privaten Discord-Thread gespiegelt" : ""}.
+                    gelesen. Meine Angaben werden zur Bearbeitung gespeichert.
                   </span>
                 </label>
                 {errors.consent && <p className="nv-error mt-1">{errors.consent}</p>}

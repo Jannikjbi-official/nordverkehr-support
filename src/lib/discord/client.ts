@@ -85,20 +85,6 @@ export interface GuildMemberInfo {
   nick: string | null;
 }
 
-/** Schlanke Sicht auf eine Discord-Nachricht (für den Thread-Abgleich). */
-export interface DiscordMessageInfo {
-  id: string;
-  channelId: string;
-  content: string;
-  authorId: string;
-  authorName: string;
-  authorIsBot: boolean;
-  /** 0 = normale Nachricht, 19 = Antwort; alles andere (System) wird ignoriert */
-  type: number;
-  createdAt: Date;
-  attachments: { url: string; filename: string; contentType: string | null }[];
-}
-
 /** Schmale Schnittstelle zu Discord – im Test leicht zu ersetzen. */
 export interface DiscordApi {
   /** null = Nutzer ist nicht auf dem Server. Wirft bei API-/Netzwerkfehlern. */
@@ -109,13 +95,6 @@ export interface DiscordApi {
   postMessage(channelId: string, body: RESTPostAPIChannelMessageJSONBody): Promise<string>;
   editMessage(channelId: string, messageId: string, body: RESTPostAPIChannelMessageJSONBody): Promise<void>;
   deleteMessage(channelId: string, messageId: string): Promise<void>;
-  /** Privaten Thread im Channel anlegen (ohne Startnachricht). Gibt die Thread-ID zurück. */
-  createPrivateThread(channelId: string, name: string): Promise<string>;
-  addThreadMember(threadId: string, userId: string): Promise<void>;
-  /** Thread umbenennen/archivieren/sperren */
-  updateThread(threadId: string, patch: { name?: string; archived?: boolean; locked?: boolean }): Promise<void>;
-  /** Nachrichten nach `after` (älteste zuerst), max. 100 */
-  getMessages(channelId: string, opts: { after?: string; limit?: number }): Promise<DiscordMessageInfo[]>;
 }
 
 /** DM-Kanal-ID pro Nutzer (ändert sich bei Discord nicht) – spart einen Aufruf pro DM */
@@ -128,20 +107,6 @@ const wrap = async <T>(fn: () => Promise<T>): Promise<T> => {
     throw classifyDiscordError(err);
   }
 };
-
-export function toMessageInfo(m: APIMessage): DiscordMessageInfo {
-  return {
-    id: m.id,
-    channelId: m.channel_id,
-    content: m.content ?? "",
-    authorId: m.author.id,
-    authorName: (m as APIMessage & { member?: { nick?: string | null } }).member?.nick ?? m.author.global_name ?? m.author.username,
-    authorIsBot: !!m.author.bot || !!m.webhook_id,
-    type: m.type,
-    createdAt: new Date(m.timestamp),
-    attachments: (m.attachments ?? []).map((a) => ({ url: a.url, filename: a.filename, contentType: a.content_type ?? null })),
-  };
-}
 
 export function createDiscordApi(token: string, opts: { timeoutMs?: number } = {}): DiscordApi {
   const rest = new REST({ version: "10", timeout: opts.timeoutMs ?? 8000, retries: 2 }).setToken(token);
@@ -190,32 +155,6 @@ export function createDiscordApi(token: string, opts: { timeoutMs?: number } = {
         if (e.kind === "not_found") return;
         throw e;
       }
-    },
-    async createPrivateThread(channelId, name) {
-      // type 12 = privater Thread; invitable false = nur Mods dürfen weitere Leute hinzufügen
-      const ch = await wrap(
-        () => rest.post(Routes.threads(channelId), { body: { name: name.slice(0, 100), type: 12, invitable: false, auto_archive_duration: 10080 } }) as Promise<APIChannel>,
-      );
-      return ch.id;
-    },
-    async addThreadMember(threadId, userId) {
-      await wrap(() => rest.put(Routes.threadMembers(threadId, userId)));
-    },
-    async updateThread(threadId, patch) {
-      try {
-        await rest.patch(Routes.channel(threadId), { body: { ...(patch.name ? { name: patch.name.slice(0, 100) } : {}), ...(patch.archived !== undefined ? { archived: patch.archived } : {}), ...(patch.locked !== undefined ? { locked: patch.locked } : {}) } });
-      } catch (err) {
-        const e = classifyDiscordError(err);
-        if (e.kind === "not_found") return; // Thread wurde gelöscht
-        throw e;
-      }
-    },
-    async getMessages(channelId, o) {
-      const query = new URLSearchParams({ limit: String(Math.min(100, o.limit ?? 100)) });
-      if (o.after) query.set("after", o.after);
-      const list = await wrap(() => rest.get(Routes.channelMessages(channelId), { query }) as Promise<APIMessage[]>);
-      // Discord liefert neueste zuerst → älteste zuerst sortieren
-      return list.map(toMessageInfo).sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
     },
   };
 }

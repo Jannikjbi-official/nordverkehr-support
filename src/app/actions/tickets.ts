@@ -1,13 +1,12 @@
 "use server";
 
-import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import { getSettings } from "@/lib/settings";
 import { looksLikeBot } from "@/lib/spam";
 import { toActionError, UserError, type ActionResult } from "@/lib/errors";
-import { addPlayerMessage, closeByPlayer, createTicket, ensureDiscordThread, rateTicket } from "@/lib/tickets/service";
+import { addPlayerMessage, closeByPlayer, createTicket, rateTicket } from "@/lib/tickets/service";
 import { deliverNow } from "@/lib/discord/outbox-db";
 import { suggestForTicket } from "@/lib/help/service";
 import { getCategory } from "@/lib/tickets/categories";
@@ -51,9 +50,6 @@ export async function createTicketAction(input: z.input<typeof CreateSchema>): P
       attachmentIds: p.attachmentIds,
       links: p.links,
       accusedUserIds: p.accusedUserIds,
-    });
-    after(async () => {
-      await ensureDiscordThread(ticket.id).catch((e) => console.error("[tickets] thread", e));
     });
     await deliverNow(jobIds, 1500);
     revalidatePath("/dashboard");

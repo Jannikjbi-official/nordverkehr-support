@@ -8,7 +8,6 @@ import {
   requestTeamWhere,
   teamCanSeeRequest,
   teamCanSeeTicket,
-  ticketMayUseDiscord,
   ticketTeamWhere,
   type Viewer,
 } from "@/lib/perms";
@@ -76,11 +75,6 @@ describe("Beschwerde über ein Teammitglied", () => {
     const unknown = ticket({ sensitivity: "TEAM_COMPLAINT", accusedDiscordIds: [] });
     expect(teamCanSeeTicket(mod, unknown)).toBe(false);
     expect(teamCanSeeTicket(lead, unknown)).toBe(true);
-  });
-
-  it("geht nie in einen Discord-Thread (Mods mit „Threads verwalten“ sähen ihn)", () => {
-    expect(ticketMayUseDiscord(complaint)).toBe(false);
-    expect(ticketMayUseDiscord(ticket())).toBe(true);
   });
 
   it("darf nicht an die beschuldigte Person weitergegeben werden", () => {

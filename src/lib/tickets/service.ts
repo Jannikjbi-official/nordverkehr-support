@@ -1,8 +1,9 @@
 /**
  * Ticket-Logik (serverseitig): Erstellen, Antworten, Status, Claim, Schließen,
- * Bewertung, Discord-Thread. Rechte werden HIER geprüft (zusätzlich zu Seiten/Actions).
+ * Bewertung. Tickets laufen nur im Portal – Discord dient nur für DMs und das Panel.
+ * Rechte werden HIER geprüft (zusätzlich zu Seiten/Actions).
  */
-import type { Prisma, Sensitivity, Ticket, TicketPriority, TicketStatus, User } from "@prisma/client";
+import type { Prisma, Sensitivity, TicketPriority, TicketStatus, User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env, publicEnv } from "@/lib/env";
 import { audit } from "@/lib/audit";
@@ -11,13 +12,13 @@ import { nextPublicId } from "@/lib/ids";
 import { UserError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { checkSpam } from "@/lib/spam";
-import { canReceiveTicket, sensitivityFor, teamCanSeeTicket, ticketMayUseDiscord, type Viewer } from "@/lib/perms";
-import { categoryLabel, displayFields, fieldsSchema, getCategory } from "@/lib/tickets/categories";
-import { ACTIVE_TICKET_STATUSES, TICKET_STATUS_EMOJI, TICKET_STATUS_LABEL, TICKET_STATUS_LABEL_TEAM, canTransition, statusAfterMessage } from "@/lib/tickets/status";
+import { canReceiveTicket, sensitivityFor, teamCanSeeTicket, type Viewer } from "@/lib/perms";
+import { categoryLabel, fieldsSchema, getCategory } from "@/lib/tickets/categories";
+import { ACTIVE_TICKET_STATUSES, TICKET_STATUS_LABEL, TICKET_STATUS_LABEL_TEAM, canTransition, statusAfterMessage } from "@/lib/tickets/status";
 import { clipProvider } from "@/lib/uploads/links";
 import { enqueue } from "@/lib/discord/outbox-db";
 import { isTestDiscordId } from "@/lib/discord/outbox";
-import { buildLogLine, buildMirrorMessage, buildThreadIntro, buildThreadNotice, buildTicketNoticeDm, buildTicketReplyDm, threadName } from "@/lib/discord/messages";
+import { buildLogLine, buildTicketNoticeDm, buildTicketReplyDm } from "@/lib/discord/messages";
 import { buildTranscript } from "@/lib/tickets/transcript";
 
 export const displayName = (u: Pick<User, "globalName" | "username">) => u.globalName || u.username;
@@ -150,66 +151,6 @@ export async function createTicket(input: CreateTicketInput) {
   return { ticket, jobIds };
 }
 
-// ─── Discord-Thread ──────────────────────────────────────────
-
-/**
- * Privaten Thread zum Ticket anlegen (idempotent). Ohne Worker: wird direkt nach
- * dem Erstellen aufgerufen und von den Hintergrundarbeiten wiederholt, falls es scheitert.
- */
-export async function ensureDiscordThread(ticketId: string): Promise<string | null> {
-  const e = env();
-  const settings = await getSettings();
-  if (!settings["tickets.discordEnabled"] || !e.DISCORD_TICKET_CHANNEL_ID || !e.DISCORD_BOT_TOKEN) return null;
-  const t = await db.ticket.findUnique({ where: { id: ticketId }, include: { creator: true, messages: { orderBy: { createdAt: "asc" }, take: 1 } } });
-  if (!t || t.discordThreadId || !ticketMayUseDiscord(t) || t.status === "CLOSED" || t.isTest || isTestDiscordId(t.creator.discordId)) return t?.discordThreadId ?? null;
-  // Sperre gegen doppeltes Anlegen (parallele Aufrufe)
-  const lock = await db.ticket.updateMany({ where: { id: ticketId, discordThreadId: null, discordChannelId: null }, data: { discordChannelId: e.DISCORD_TICKET_CHANNEL_ID } });
-  if (!lock.count) return null;
-  const { getDiscordApi } = await import("@/lib/discord/client");
-  const api = getDiscordApi();
-  try {
-    const cat = getCategory(t.category);
-    const threadId = await api.createPrivateThread(e.DISCORD_TICKET_CHANNEL_ID, threadName(TICKET_STATUS_EMOJI[t.status], t.publicId, cat?.short ?? t.category, displayName(t.creator)));
-    await db.ticket.update({ where: { id: t.id }, data: { discordThreadId: threadId, lastSyncAt: new Date() } });
-    await api.addThreadMember(threadId, t.creator.discordId).catch(() => {}); // nicht auf dem Server → egal
-    const introId = await api.postMessage(
-      threadId,
-      buildThreadIntro({
-        ticketId: t.id,
-        publicId: t.publicId,
-        categoryLabel: cat?.label ?? t.category,
-        subject: t.subject,
-        body: t.messages[0]?.body ?? "",
-        fields: displayFields(t.category, t.fields),
-        playerDiscordId: t.creator.discordId,
-        portalUrl: ticketUrl(t.id),
-        source: t.source,
-      }),
-    );
-    await db.syncedDiscordMessage.create({ data: { id: introId, ticketId: t.id } }).catch(() => {});
-    await db.ticket.update({ where: { id: t.id }, data: { lastSyncedMessageId: introId } });
-    return threadId;
-  } catch (err) {
-    console.error("[tickets] Thread konnte nicht angelegt werden", t.publicId, err);
-    await db.ticket.updateMany({ where: { id: t.id, discordThreadId: null }, data: { discordChannelId: null } });
-    return null;
-  }
-}
-
-async function mirrorToThread(t: Pick<Ticket, "id" | "discordThreadId" | "status">, message: Parameters<typeof buildMirrorMessage>[0] | { notice: string }, ticketMessageId?: string) {
-  if (!t.discordThreadId) return null;
-  const msg = "notice" in message ? buildThreadNotice(message.notice) : buildMirrorMessage(message);
-  const job = await enqueue({ type: "THREAD_MESSAGE", threadId: t.discordThreadId, message: msg, unarchive: t.status === "CLOSED" || t.status === "RESOLVED" }, { ticketId: t.id, ticketMessageId });
-  return job.id;
-}
-
-async function renameThread(t: Ticket & { creator: Pick<User, "globalName" | "username"> }, status: TicketStatus, extra: { archived?: boolean; locked?: boolean } = {}) {
-  if (!t.discordThreadId) return null;
-  const cat = getCategory(t.category);
-  const job = await enqueue({ type: "THREAD_UPDATE", threadId: t.discordThreadId, name: threadName(TICKET_STATUS_EMOJI[status], t.publicId, cat?.short ?? t.category, displayName(t.creator)), ...extra }, { ticketId: t.id });
-  return job.id;
-}
-
 // ─── Nachrichten ─────────────────────────────────────────────
 
 export async function addPlayerMessage(input: { user: User; ticketId: string; body: string; attachmentIds?: string[]; links?: string[]; source?: "WEB" | "DISCORD" }) {
@@ -232,13 +173,7 @@ export async function addPlayerMessage(input: { user: User; ticketId: string; bo
     if (next !== t.status) await tx.ticketEvent.create({ data: { ticketId: t.id, actorId: input.user.id, actorName: displayName(input.user), type: "status", from: t.status, to: next } });
     return m;
   });
-  const jobIds: string[] = [];
-  if ((input.source ?? "WEB") === "WEB") {
-    const links = await db.attachment.findMany({ where: { ticketMessageId: msg.id }, select: { id: true, kind: true, url: true } });
-    const j = await mirrorToThread(t, { authorName: displayName(input.user), role: "Spieler", body, attachments: links.map((a) => (a.kind === "LINK" ? a.url! : `${publicEnv.appUrl}/api/uploads/${a.id}`)) }, msg.id);
-    if (j) jobIds.push(j);
-  }
-  return { message: msg, jobIds };
+  return { message: msg, jobIds: [] as string[] };
 }
 
 export async function addTeamMessage(input: { viewer: Viewer; actor: User; ticketId: string; body: string; internal?: boolean; attachmentIds?: string[]; links?: string[]; setStatus?: TicketStatus | null }) {
@@ -290,19 +225,12 @@ export async function addTeamMessage(input: { viewer: Viewer; actor: User; ticke
 
   const jobIds: string[] = [];
   if (!input.internal) {
-    const atts = await db.attachment.findMany({ where: { ticketMessageId: msg.id }, select: { id: true, kind: true, url: true } });
-    const j = await mirrorToThread(t, { authorName: displayName(input.actor), role: "Team", body, attachments: atts.map((a) => (a.kind === "LINK" ? a.url! : `${publicEnv.appUrl}/api/uploads/${a.id}`)) }, msg.id);
-    if (j) jobIds.push(j);
     if (wantsDm) {
       const dm = await enqueue(
         { type: "DM", discordUserId: creator.discordId, purpose: "ticket_reply", message: buildTicketReplyDm({ publicId: t.publicId, subject: t.subject, authorName: displayName(input.actor), body, url: ticketUrl(t.id) }) },
         { ticketMessageId: msg.id, ticketId: t.id },
       );
       jobIds.push(dm.id);
-    }
-    if (next !== t.status) {
-      const r = await renameThread({ ...t, creator }, next);
-      if (r) jobIds.push(r);
     }
   }
   return { message: msg, jobIds };
@@ -334,10 +262,6 @@ export async function changeStatus(input: { viewer: Viewer; actor: User; ticketI
   ]);
   await audit("ticket.status", { actorId: input.actor.id, targetType: "ticket", targetId: t.id, meta: { from: t.status, to: input.to } });
   const jobIds: string[] = [];
-  const n = await mirrorToThread(t, { notice: `${displayName(input.actor)} hat den Status auf „${TICKET_STATUS_LABEL_TEAM[input.to]}“ gesetzt.` });
-  if (n) jobIds.push(n);
-  const r = await renameThread({ ...t, creator }, input.to, input.to === "OPEN" ? { archived: false, locked: false } : {});
-  if (r) jobIds.push(r);
   if (input.to === "RESOLVED") {
     const settings = await getSettings();
     if (settings["tickets.dmOnReply"] && !creator.dmOptOut && !isTestDiscordId(creator.discordId)) {
@@ -371,10 +295,7 @@ export async function claimTicket(input: { viewer: Viewer; actor: User; ticketId
   }
   await db.ticketEvent.create({ data: { ticketId: t.id, actorId: input.actor.id, actorName: displayName(input.actor), type: input.action, to: input.action === "claim" ? displayName(input.actor) : null } });
   await audit(input.action === "claim" ? "ticket.claim" : "ticket.release", { actorId: input.actor.id, targetType: "ticket", targetId: t.id });
-  const jobIds: string[] = [];
-  const n = await mirrorToThread(t, { notice: input.action === "claim" ? `📌 ${displayName(input.actor)} kümmert sich um dieses Ticket.` : `${displayName(input.actor)} hat das Ticket freigegeben.` });
-  if (n) jobIds.push(n);
-  return { jobIds };
+  return { jobIds: [] as string[] };
 }
 
 export async function transferTicket(input: { viewer: Viewer; actor: User; ticketId: string; toUserId: string }) {
@@ -387,8 +308,7 @@ export async function transferTicket(input: { viewer: Viewer; actor: User; ticke
   await db.ticket.update({ where: { id: t.id }, data: { claimedById: target.id } });
   await db.ticketEvent.create({ data: { ticketId: t.id, actorId: input.actor.id, actorName: displayName(input.actor), type: "transfer", from: displayName(input.actor), to: displayName(target) } });
   await audit("ticket.transfer", { actorId: input.actor.id, targetType: "ticket", targetId: t.id, meta: { to: target.id } });
-  const n = await mirrorToThread(t, { notice: `${displayName(input.actor)} hat das Ticket an ${displayName(target)} weitergegeben.` });
-  return { jobIds: n ? [n] : [] };
+  return { jobIds: [] as string[] };
 }
 
 export async function updateTicketMeta(input: { viewer: Viewer; actor: User; ticketId: string; priority?: TicketPriority; tags?: string[]; accusedUserIds?: string[]; sensitivity?: Sensitivity }) {
@@ -420,16 +340,7 @@ export async function updateTicketMeta(input: { viewer: Viewer; actor: User; tic
     await audit("ticket.sensitivity", { actorId: input.actor.id, targetType: "ticket", targetId: t.id, meta: { sensitivity: input.sensitivity ?? null } });
   }
   await db.ticket.update({ where: { id: t.id }, data });
-  // Wurde das Ticket vertraulich, darf es nicht mehr im (für Mods sichtbaren) Thread weiterlaufen
-  const after = await db.ticket.findUniqueOrThrow({ where: { id: t.id } });
-  const jobIds: string[] = [];
-  if (after.discordThreadId && !ticketMayUseDiscord(after)) {
-    const n = await mirrorToThread(after, { notice: "Dieses Ticket läuft ab jetzt nur noch im Portal weiter." });
-    if (n) jobIds.push(n);
-    jobIds.push((await enqueue({ type: "THREAD_UPDATE", threadId: after.discordThreadId, archived: true, locked: true }, { ticketId: t.id })).id);
-    await db.ticket.update({ where: { id: t.id }, data: { discordThreadId: null } });
-  }
-  return { jobIds };
+  return { jobIds: [] as string[] };
 }
 
 // ─── Schließen & Bewerten ────────────────────────────────────
@@ -447,10 +358,6 @@ export async function closeTicket(input: { ticketId: string; actor: User | null;
   ]);
   if (input.actor && !input.byPlayer) await audit("ticket.status", { actorId: input.actor.id, targetType: "ticket", targetId: t.id, meta: { to: "CLOSED", reason: input.reason } });
   const jobIds: string[] = [];
-  const n = await mirrorToThread(t, { notice: `🔒 Ticket geschlossen (${input.reason}). Das Transkript liegt im Portal.` });
-  if (n) jobIds.push(n);
-  const r = await renameThread(t, "CLOSED", { archived: true, locked: true });
-  if (r) jobIds.push(r);
   if (!input.byPlayer && !t.creator.dmOptOut && !isTestDiscordId(t.creator.discordId)) {
     const dm = await enqueue({
       type: "DM",

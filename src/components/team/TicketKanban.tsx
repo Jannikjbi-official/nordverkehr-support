@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { DiscordLogo, LockSimple } from "@phosphor-icons/react/ssr";
+import { LockSimple } from "@phosphor-icons/react/ssr";
 import type { TicketPriority, TicketStatus } from "@prisma/client";
 import { teamStatusAction } from "@/app/actions/team-tickets";
 import { PRIORITY_LABEL, PRIORITY_TONE, TICKET_STATUS_LABEL_TEAM, TICKET_STATUS_TONE } from "@/lib/tickets/status";
@@ -19,7 +19,6 @@ export interface KanbanItem {
   category: string;
   player: string;
   claimedBy: string | null;
-  discord: boolean;
   sensitive: boolean;
   tags: string[];
 }
@@ -117,7 +116,6 @@ function Card({ item, overlay }: { item: KanbanItem; overlay?: boolean }) {
             <LockSimple size={10} aria-hidden /> vertraulich
           </span>
         )}
-        {item.discord && <DiscordLogo size={13} className="text-muted" aria-label="Discord-Thread" />}
         {item.tags.slice(0, 3).map((t) => (
           <span key={t} className="nv-pill nv-tone-muted !text-[0.65rem] !py-0">
             #{t}

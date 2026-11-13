@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireLead } from "@/lib/auth/session";
 import { AUDIT_LABELS } from "@/lib/audit";
 import { formatDayTime } from "@/components/ui";
+import { FormSelect } from "@/components/FormSelect";
 
 export const metadata: Metadata = { title: "Audit-Log" };
 
@@ -28,17 +29,18 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         Wer hat was <em>gemacht?</em>
       </h1>
       <form method="get" className="mt-6 flex gap-2 items-end">
-        <label>
-          <span className="nv-field-label">Aktion</span>
-          <select name="aktion" defaultValue={action ?? ""} className="nv-input mt-1">
-            <option value="">Alle</option>
-            {Object.entries(AUDIT_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <label htmlFor="audit-aktion" className="nv-field-label">
+            Aktion
+          </label>
+          <FormSelect
+            id="audit-aktion"
+            name="aktion"
+            defaultValue={action ?? ""}
+            className="mt-1 w-72 max-w-full"
+            options={[{ value: "", label: "Alle" }, ...Object.entries(AUDIT_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+          />
+        </div>
         <button type="submit" className="nv-btn nv-btn-primary nv-btn-sm">
           Filtern
         </button>

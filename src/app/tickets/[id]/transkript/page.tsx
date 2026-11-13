@@ -17,6 +17,7 @@ export default async function TranscriptPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const { user, access } = await getCurrentAccess();
   if (!user || !access) redirect(`/login?callbackUrl=/tickets/${id}/transkript`);
+  if (access.guildBanned && !access.isTeam) redirect("/antraege?gesperrt=1");
   const t = await db.ticket.findUnique({ where: { id } });
   if (!t || !t.transcript) notFound();
   const isOwner = t.creatorId === user.id;

@@ -1,7 +1,6 @@
 /**
  * Hintergrundarbeiten OHNE Dauer-Worker:
  *  - Outbox zustellen (Wiederholungen)
- *  - fehlende Discord-Threads anlegen, Thread-Nachrichten abholen
  *  - Erinnerungen und Auto-Close, gelöste Tickets schließen
  *  - entschiedene Anträge archivieren, Löschfristen (1×/Tag)
  *
@@ -14,7 +13,7 @@ import { getSettings } from "@/lib/settings";
 import { releaseStuckJobs, runOutbox } from "@/lib/discord/outbox-db";
 import { enqueue } from "@/lib/discord/outbox-db";
 import { isTestDiscordId } from "@/lib/discord/outbox";
-import { buildThreadNotice, buildTicketNoticeDm } from "@/lib/discord/messages";
+import { buildTicketNoticeDm } from "@/lib/discord/messages";
 import { autoCloseAction } from "@/lib/tickets/autoclose";
 
 /** Exklusive Sperre: true, wenn wir sie bekommen haben */
@@ -51,55 +50,17 @@ export async function runHousekeeping(opts: { budgetMs?: number; withRetention?:
   report.released = await releaseStuckJobs(5);
   report.outbox = await runOutbox({ limit: 30 });
 
-  // Fehlende Threads (z. B. Discord kurz nicht erreichbar)
-  if (left() > 5000 && settings["tickets.discordEnabled"]) {
-    const { ensureDiscordThread } = await import("@/lib/tickets/service");
-    const missing = await db.ticket.findMany({
-      where: { discordThreadId: null, discordChannelId: null, status: { in: ["OPEN", "IN_PROGRESS", "WAITING_PLAYER"] }, sensitivity: { not: "TEAM_COMPLAINT" }, isTest: false, createdAt: { gte: new Date(Date.now() - 2 * 86_400_000) } },
-      select: { id: true },
-      take: 5,
-    });
-    let n = 0;
-    for (const t of missing) if (await ensureDiscordThread(t.id)) n++;
-    report.threads = n;
-  }
-
-  // Discord → Web: aktive Tickets mit Thread, am längsten nicht abgeglichen zuerst
-  if (left() > 5000) {
-    const { syncTicketFromDiscord } = await import("@/lib/tickets/sync-db");
-    const active = await db.ticket.findMany({
-      where: { discordThreadId: { not: null }, status: { in: ["OPEN", "IN_PROGRESS", "WAITING_PLAYER", "RESOLVED"] } },
-      orderBy: { lastSyncAt: "asc" },
-      select: { id: true },
-      take: 15,
-    });
-    let n = 0;
-    for (const t of active) {
-      if (left() < 4000) break;
-      n += await syncTicketFromDiscord(t.id, { timeoutMs: 3000 });
-    }
-    report.synced = n;
-  }
-
   // Erinnerungen und Auto-Close
   if (left() > 3000) {
     const { closeTicket } = await import("@/lib/tickets/service");
-    const { syncTicketFromDiscord } = await import("@/lib/tickets/sync-db");
     const candidates = await db.ticket.findMany({ where: { status: { in: ["WAITING_PLAYER", "RESOLVED"] } }, include: { creator: true }, take: 100 });
     const s = { autoCloseDays: settings["tickets.autoCloseDays"], reminderHours: settings["tickets.reminderHours"], resolvedCloseDays: settings["tickets.resolvedCloseDays"] };
     let reminded = 0;
     let closed = 0;
     for (const t of candidates) {
       if (left() < 2000) break;
-      let action = autoCloseAction(t, s);
+      const action = autoCloseAction(t, s);
       if (!action) continue;
-      if (action === "close" && t.discordThreadId) {
-        // Vor dem Schließen: hat der Spieler in Discord geantwortet?
-        await syncTicketFromDiscord(t.id, { force: true, timeoutMs: 3000 });
-        const fresh = await db.ticket.findUniqueOrThrow({ where: { id: t.id } });
-        action = autoCloseAction(fresh, s);
-        if (action !== "close") continue;
-      }
       if (action === "remind") {
         const won = await db.ticket.updateMany({ where: { id: t.id, autoCloseWarnedAt: null, status: "WAITING_PLAYER" }, data: { autoCloseWarnedAt: new Date() } });
         if (!won.count) continue;
@@ -107,7 +68,6 @@ export async function runHousekeeping(opts: { budgetMs?: number; withRetention?:
         if (!t.creator.dmOptOut && !isTestDiscordId(t.creator.discordId)) {
           await enqueue({ type: "DM", discordUserId: t.creator.discordId, purpose: "ticket_reminder", message: buildTicketNoticeDm({ publicId: t.publicId, title: "Kurze Erinnerung", body: text, url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/tickets/${t.id}` }) });
         }
-        if (t.discordThreadId) await enqueue({ type: "THREAD_MESSAGE", threadId: t.discordThreadId, message: buildThreadNotice(`⏰ ${text}`) }, { ticketId: t.id });
         await db.ticketMessage.create({ data: { ticketId: t.id, authorName: "System", kind: "SYSTEM", body: `Erinnerung: ${text}` } });
         reminded++;
       } else {

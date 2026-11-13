@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { deleteTemplateAction, saveTemplateAction } from "@/app/actions/team-content";
 import { DiscordMarkdown } from "@/components/DiscordMarkdown";
 import { confirmDialog } from "@/components/ConfirmDialog";
+import { Select } from "@/components/Select";
 import { renderTemplate } from "@/lib/messages/placeholders";
 
 interface Tpl {
@@ -65,39 +66,49 @@ export function TemplateEditor({ templates, categories, requestTypes, canEdit }:
               <input className="nv-input mt-1" value={edit.title} maxLength={80} onChange={(e) => setEdit({ ...edit, title: e.target.value })} required />
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <label>
-                <span className="nv-field-label">Für</span>
-                <select className="nv-input mt-1" value={edit.scope} onChange={(e) => setEdit({ ...edit, scope: e.target.value as Tpl["scope"] })}>
-                  <option value="ticket">Tickets</option>
-                  <option value="request">Anträge</option>
-                  <option value="all">Überall</option>
-                </select>
-              </label>
-              {edit.scope === "ticket" && (
-                <label>
-                  <span className="nv-field-label">Kategorie</span>
-                  <select className="nv-input mt-1" value={edit.ticketCategory ?? ""} onChange={(e) => setEdit({ ...edit, ticketCategory: e.target.value || null })}>
-                    <option value="">Alle</option>
-                    {categories.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label htmlFor="tpl-scope" className="nv-field-label">
+                  Für
                 </label>
+                <Select<Tpl["scope"]>
+                  id="tpl-scope"
+                  className="mt-1"
+                  value={edit.scope}
+                  onChange={(scope) => setEdit({ ...edit, scope })}
+                  options={[
+                    { value: "ticket", label: "Tickets" },
+                    { value: "request", label: "Anträge" },
+                    { value: "all", label: "Überall" },
+                  ]}
+                />
+              </div>
+              {edit.scope === "ticket" && (
+                <div>
+                  <label htmlFor="tpl-category" className="nv-field-label">
+                    Kategorie
+                  </label>
+                  <Select
+                    id="tpl-category"
+                    className="mt-1"
+                    value={edit.ticketCategory ?? ""}
+                    onChange={(v) => setEdit({ ...edit, ticketCategory: v || null })}
+                    options={[{ value: "", label: "Alle" }, ...categories.map((c) => ({ value: c.key, label: c.label }))]}
+                  />
+                </div>
               )}
               {edit.scope === "request" && (
-                <label>
-                  <span className="nv-field-label">Antragsart</span>
-                  <select className="nv-input mt-1" value={edit.requestTypeSlug ?? ""} onChange={(e) => setEdit({ ...edit, requestTypeSlug: e.target.value || null })}>
-                    <option value="">Alle</option>
-                    {requestTypes.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div>
+                  <label htmlFor="tpl-request-type" className="nv-field-label">
+                    Antragsart
+                  </label>
+                  <Select
+                    id="tpl-request-type"
+                    className="mt-1"
+                    value={edit.requestTypeSlug ?? ""}
+                    onChange={(v) => setEdit({ ...edit, requestTypeSlug: v || null })}
+                    options={[{ value: "", label: "Alle" }, ...requestTypes.map((c) => ({ value: c.key, label: c.label }))]}
+                  />
+                </div>
               )}
             </div>
             <label className="block">

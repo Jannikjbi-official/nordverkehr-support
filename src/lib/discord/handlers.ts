@@ -108,14 +108,9 @@ async function requestLinks(user: User | null) {
   );
 }
 
-async function findTicketForTeam(i: Interaction, viewer: Viewer, raw?: string) {
-  if (raw) {
-    const publicId = normalizePublicId(raw, env().TICKET_ID_PREFIX);
-    const t = publicId ? await db.ticket.findUnique({ where: { publicId } }) : null;
-    return t && teamCanSeeTicket(viewer, t) ? t : null;
-  }
-  // Ohne ID: das Ticket des aktuellen Threads
-  const t = i.channel_id ? await db.ticket.findFirst({ where: { discordThreadId: i.channel_id } }) : null;
+async function findTicketForTeam(viewer: Viewer, raw: string) {
+  const publicId = normalizePublicId(raw, env().TICKET_ID_PREFIX);
+  const t = publicId ? await db.ticket.findUnique({ where: { publicId } }) : null;
   return t && teamCanSeeTicket(viewer, t) ? t : null;
 }
 
@@ -132,7 +127,7 @@ export async function handleCommand(i: Interaction): Promise<Response> {
     try {
       const { getDiscordApi } = await import("@/lib/discord/client");
       await getDiscordApi().postMessage(i.channel_id, buildPanelMessage({ helpUrl: publicEnv.appUrl, requestsUrl: `${publicEnv.appUrl}/antraege` }));
-      return json(ephemeral("✅ Panel gepostet. Tickets entstehen als private Threads im Ticket-Channel aus der Konfiguration."));
+      return json(ephemeral("✅ Panel gepostet. Tickets landen im Portal, Antworten gehen per DM raus."));
     } catch (e) {
       return json(ephemeral(`Konnte nicht posten: ${(e as Error).message}`));
     }
@@ -144,14 +139,15 @@ export async function handleCommand(i: Interaction): Promise<Response> {
     if (sub?.name === "status") {
       const own = await db.ticket.findMany({ where: { creatorId: user.id, status: { not: "CLOSED" } }, orderBy: { updatedAt: "desc" }, take: 5 });
       if (!own.length) return json(ephemeral(`Du hast gerade keine offenen Tickets. Neues Ticket: \`/ticket neu\` oder ${publicEnv.appUrl}/tickets/neu`));
-      return json(ephemeral(`**Deine offenen Tickets:**\n${own.map((t) => `- \`${t.publicId}\` ${t.subject.replace(/[*_`]/g, "")} – ${TICKET_STATUS_LABEL[t.status]}${t.discordThreadId ? ` · <#${t.discordThreadId}>` : ""}`).join("\n")}\n-# Alle: ${publicEnv.appUrl}/dashboard`));
+      return json(ephemeral(`**Deine offenen Tickets:**\n${own.map((t) => `- \`${t.publicId}\` ${t.subject.replace(/[*_`]/g, "")} – ${TICKET_STATUS_LABEL[t.status]} · ${ticketLink(t.id)}`).join("\n")}\n-# Alle: ${publicEnv.appUrl}/dashboard`));
     }
     if (sub?.name === "claim") {
       const viewer = viewerFrom(user, i);
       if (viewer.teamLevel === "NONE") return json(ephemeral("Das geht nur fürs Team."));
       const raw = sub.options?.find((o) => o.name === "id")?.value;
-      const t = await findTicketForTeam(i, viewer, raw ? String(raw) : undefined);
-      if (!t) return json(ephemeral(raw ? "Ticket nicht gefunden (oder du darfst es nicht sehen)." : "Nutze den Befehl im Ticket-Thread oder gib eine ID an."));
+      if (!raw) return json(ephemeral("Bitte gib eine Ticket-ID an, z. B. `/ticket claim id:NVS-2026-0012`."));
+      const t = await findTicketForTeam(viewer, String(raw));
+      if (!t) return json(ephemeral("Ticket nicht gefunden (oder du darfst es nicht sehen)."));
       return json(ephemeral(await claimText(user, viewer, t.id)));
     }
   }
@@ -180,60 +176,20 @@ export async function handleComponent(i: Interaction): Promise<Response> {
   const user = await userOf(i);
   if (!user) return json(ephemeral("Das hat nicht geklappt."));
   if (action.kind === "panelRequest") return json(await requestLinks(user));
-  return handleTicketAction(i, user, action);
+  return handleTicketAction(user, action);
 }
 
-async function handleTicketAction(i: Interaction, user: User, action: SupportAction): Promise<Response> {
-  if (!("ticketId" in action)) return json(ephemeral("Unbekannte Aktion."));
+/** Einziger Ticket-Knopf in Discord: Bewertung aus der DM nach dem Schließen */
+async function handleTicketAction(user: User, action: SupportAction): Promise<Response> {
+  if (action.kind !== "rate") return json(ephemeral("Dieser Knopf ist veraltet – Tickets laufen im Portal."));
   const t = await db.ticket.findUnique({ where: { id: action.ticketId } });
-  if (!t) return json(ephemeral("Das Ticket gibt es nicht mehr."));
-  const viewer = viewerFrom(user, i);
-  const isOwner = t.creatorId === user.id;
-  const isTeam = teamCanSeeTicket(viewer, t);
-  if (!isOwner && !isTeam) return json(ephemeral("Das ist nicht dein Ticket."));
-
-  switch (action.kind) {
-    case "claim":
-      if (!isTeam) return json(ephemeral("Übernehmen kann nur das Team."));
-      return json(ephemeral(await claimText(user, viewer, t.id)));
-    case "reply":
-      if (t.status === "CLOSED") return json(ephemeral("Das Ticket ist geschlossen."));
-      return json(
-        modal(ids.replySubmit(t.id), `Antwort zu ${t.publicId}`, [
-          textInput("body", isOwner ? "Deine Nachricht ans Team" : "Antwort an den Spieler", { style: 2, required: true, min: 2, max: 2000, placeholder: "Erscheint im Portal und hier im Thread." }),
-        ]),
-      );
-    case "sync": {
-      const { syncTicketFromDiscord } = await import("@/lib/tickets/sync-db");
-      const n = await syncTicketFromDiscord(t.id, { force: true, timeoutMs: 2000 });
-      return json(ephemeral(`✅ ${n} neue Nachricht(en) ins Portal übernommen.`));
-    }
-    case "close":
-      if (t.status === "CLOSED") return json(ephemeral("Das Ticket ist schon geschlossen."));
-      return json(ephemeral("Ticket wirklich schließen? Danach geht nur noch ein neues Ticket.", [{ type: 1, components: [{ type: 2, style: 4, label: "Ja, schließen", custom_id: ids.closeOk(t.id) }] }]));
-    case "closeOk": {
-      if (t.status === "CLOSED") return json(ephemeral("Das Ticket ist schon geschlossen."));
-      after(async () => {
-        const { syncTicketFromDiscord } = await import("@/lib/tickets/sync-db");
-        await syncTicketFromDiscord(t.id, { force: true, timeoutMs: 4000 });
-        const { closeTicket } = await import("@/lib/tickets/service");
-        const r = await closeTicket({ ticketId: t.id, actor: user, reason: isOwner ? "Vom Spieler geschlossen" : "Vom Team geschlossen", byPlayer: isOwner });
-        await runOutbox({ ids: r.jobIds }).catch(() => {});
-      });
-      return json(ephemeral("🔒 Wird geschlossen. Das Transkript liegt danach im Portal."));
-    }
-    case "rate": {
-      if (!isOwner) return json(ephemeral("Bewerten kann nur, wer das Ticket erstellt hat."));
-      try {
-        const { rateTicket } = await import("@/lib/tickets/service");
-        await rateTicket(user, t.id, action.stars);
-        return json(ephemeral(`Danke für deine Bewertung (${"★".repeat(action.stars)})! Einen Kommentar kannst du im Portal ergänzen: ${ticketLink(t.id)}`));
-      } catch (e) {
-        return json(ephemeral(toActionError(e).error));
-      }
-    }
-    default:
-      return json(ephemeral("Unbekannte Aktion."));
+  if (!t || t.creatorId !== user.id) return json(ephemeral("Bewerten kann nur, wer das Ticket erstellt hat."));
+  try {
+    const { rateTicket } = await import("@/lib/tickets/service");
+    await rateTicket(user, t.id, action.stars);
+    return json(ephemeral(`Danke für deine Bewertung (${"★".repeat(action.stars)})! Einen Kommentar kannst du im Portal ergänzen: ${ticketLink(t.id)}`));
+  } catch (e) {
+    return json(ephemeral(toActionError(e).error));
   }
 }
 
@@ -251,18 +207,15 @@ export async function handleModal(i: Interaction): Promise<Response> {
     for (const f of cat.discordFields) fields[f.key] = modalValue(data, f.key);
     const subject = modalValue(data, "subject");
     const body = modalValue(data, "body");
-    // Thread anlegen dauert länger als Discords 3-Sekunden-Grenze → verzögert antworten
+    // Datenbank + Log-Post können länger als Discords 3-Sekunden-Grenze dauern → verzögert antworten
     after(async () => {
       let content: string;
       try {
         if (user.guildBanned) throw new Error("Solange du gebannt bist, ist nur ein Entbannungsantrag möglich.");
-        const { createTicket, ensureDiscordThread } = await import("@/lib/tickets/service");
+        const { createTicket } = await import("@/lib/tickets/service");
         const { ticket, jobIds } = await createTicket({ creator: user, category: cat.key, subject, body, fields, source: "DISCORD", lenient: true });
-        const threadId = await ensureDiscordThread(ticket.id);
         await runOutbox({ ids: jobIds }).catch(() => {});
-        content = threadId
-          ? `✅ Ticket **${ticket.publicId}** ist da: <#${threadId}>\nDu findest es auch im Portal: ${ticketLink(ticket.id)}`
-          : `✅ Ticket **${ticket.publicId}** ist da. Weiter geht's im Portal: ${ticketLink(ticket.id)}`;
+        content = `✅ Ticket **${ticket.publicId}** ist da. Antworten vom Team bekommst du per DM – weiter geht's im Portal: ${ticketLink(ticket.id)}`;
       } catch (e) {
         const msg = e instanceof Error && e.name === "UserError" ? e.message : toActionError(e).error;
         content = `❌ ${msg}`;
@@ -272,30 +225,5 @@ export async function handleModal(i: Interaction): Promise<Response> {
     return json(deferredEphemeral());
   }
 
-  if (action.kind === "replySubmit") {
-    const body = modalValue(i.data, "body");
-    const t = await db.ticket.findUnique({ where: { id: action.ticketId } });
-    if (!t) return json(ephemeral("Das Ticket gibt es nicht mehr."));
-    const viewer = viewerFrom(user, i);
-    const isOwner = t.creatorId === user.id;
-    if (!isOwner && !teamCanSeeTicket(viewer, t)) return json(ephemeral("Das ist nicht dein Ticket."));
-    after(async () => {
-      let content: string;
-      try {
-        const { syncTicketFromDiscord } = await import("@/lib/tickets/sync-db");
-        await syncTicketFromDiscord(t.id, { force: true, timeoutMs: 3000 });
-        const svc = await import("@/lib/tickets/service");
-        const r = isOwner
-          ? await svc.addPlayerMessage({ user, ticketId: t.id, body })
-          : await svc.addTeamMessage({ viewer, actor: user, ticketId: t.id, body });
-        await runOutbox({ ids: r.jobIds }).catch(() => {});
-        content = "✅ Steht im Portal (und hier im Thread).";
-      } catch (e) {
-        content = `❌ ${toActionError(e).error}`;
-      }
-      await editOriginal(i.application_id, i.token, { content });
-    });
-    return json(deferredEphemeral());
-  }
   return json(ephemeral("Unbekanntes Formular."));
 }

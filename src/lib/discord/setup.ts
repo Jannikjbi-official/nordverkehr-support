@@ -18,7 +18,7 @@ function headers() {
   return { Authorization: `Bot ${token}`, "Content-Type": "application/json" };
 }
 
-export async function getApplication(): Promise<{ id: string; name: string; interactions_endpoint_url?: string | null; flags?: number }> {
+export async function getApplication(): Promise<{ id: string; name: string; interactions_endpoint_url?: string | null }> {
   const res = await fetch(`${API}/applications/@me`, { headers: headers(), cache: "no-store" });
   if (!res.ok) throw new Error(`Discord-App nicht lesbar (${res.status}).`);
   return res.json();
@@ -76,16 +76,12 @@ export async function diagnose() {
       ok: url === interactionsUrl(),
       detail: url ? (url === interactionsUrl() ? "zeigt auf das Support-Center (Router)" : `zeigt auf ${url} – Support-Knöpfe gehen dann nicht`) : "nicht gesetzt",
     });
-    // Message Content Intent: Flags 1<<18 (GATEWAY_MESSAGE_CONTENT) oder 1<<19 (…_LIMITED)
-    const flags = app.flags ?? 0;
-    const content = (flags & (1 << 18)) !== 0 || (flags & (1 << 19)) !== 0;
-    checks.push({ label: "Message Content Intent", ok: content, detail: content ? "an – Thread-Nachrichten werden mit Text übernommen" : "aus – Texte aus Discord-Threads kommen leer an" });
   } catch (err) {
     checks.push({ label: "Bot-Token", ok: false, detail: (err as Error).message });
   }
   checks.push({ label: "Server-ID", ok: !!e.DISCORD_GUILD_ID, detail: e.DISCORD_GUILD_ID ?? "fehlt" });
   checks.push({ label: "Rollen", ok: !!(e.SUPPORT_ROLE_ID && e.MODERATION_ROLE_ID && e.LEITUNG_ROLE_ID), detail: [e.SUPPORT_ROLE_ID ? "Support ✓" : "Support fehlt", e.MODERATION_ROLE_ID ? "Moderation ✓" : "Moderation fehlt", e.LEITUNG_ROLE_ID ? "Leitung ✓" : "Leitung fehlt"].join(" · ") });
-  checks.push({ label: "Ticket-Channel", ok: !!e.DISCORD_TICKET_CHANNEL_ID, detail: e.DISCORD_TICKET_CHANNEL_ID ?? "fehlt – Tickets laufen dann nur im Portal" });
+  checks.push({ label: "Panel-Channel", ok: !!e.DISCORD_TICKET_CHANNEL_ID, detail: e.DISCORD_TICKET_CHANNEL_ID ?? "fehlt – Panel nur per /support-panel postbar" });
   checks.push({ label: "Log-Channel", ok: !!e.DISCORD_LOG_CHANNEL_ID, detail: e.DISCORD_LOG_CHANNEL_ID ?? "optional, nicht gesetzt" });
   checks.push({ label: "Weiterleitung Bewerbungsportal", ok: !!e.INTERACTIONS_FORWARD_URL, detail: e.INTERACTIONS_FORWARD_URL ?? "aus – Knöpfe des Bewerbungsportals würden nicht beantwortet" });
   return checks;

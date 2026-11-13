@@ -24,7 +24,7 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHero label="Support // Neues Ticket" title="Was ist" emphasis="los?" compact>
-        Beschreib dein Anliegen so genau wie möglich – dann geht&apos;s schneller. Du kannst dein Ticket hier im Portal und (falls du auf unserem Discord bist) in einem privaten Thread verfolgen.
+        Beschreib dein Anliegen so genau wie möglich – dann geht&apos;s schneller. Antworten vom Team siehst du hier und bekommst sie per DM vom NV Lotse.
       </PageHero>
       <Container>
         {limitReached ? (
@@ -37,7 +37,6 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
             initialSubject={str("betreff").slice(0, 140)}
             team={team.map((t) => ({ id: t.id, name: t.globalName || t.username }))}
             needsConsent={(user.consentVersion ?? 0) < settings["privacy.version"]}
-            discordEnabled={settings["tickets.discordEnabled"]}
           />
         )}
       </Container>

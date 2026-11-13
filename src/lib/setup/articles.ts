@@ -111,7 +111,7 @@ Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf. Schreib dazu, welc
 
 ## Tickets
 
-Tickets eröffnest du entweder hier im Web unter [/tickets/neu](/tickets/neu) oder im Discord über den Button im Ticket-Kanal. Im Discord entsteht dann ein privater Thread, den nur du und das Team sehen.
+Tickets eröffnest du entweder hier im Web unter [/tickets/neu](/tickets/neu) oder im Discord über den Button im Ticket-Kanal. Geschrieben wird immer hier im Portal – Antworten vom Team bekommst du zusätzlich per DM.
 
 ## Anträge
 

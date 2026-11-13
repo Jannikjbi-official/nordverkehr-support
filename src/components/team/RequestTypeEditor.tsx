@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash } from "@phosphor-icons/react/ssr";
 import { saveRequestTypeAction } from "@/app/actions/admin";
 import { FIELD_TYPES, type FieldDef, type Outcome } from "@/lib/requests/model";
+import { Select } from "@/components/Select";
 
 type Level = "SUPPORT" | "MODERATION" | "LEITUNG";
 
@@ -41,6 +42,7 @@ export function RequestTypeEditor({ initial, icons }: { initial: TypeDraft; icon
   const [cooldowns, setCooldowns] = useState(Object.entries(initial.cooldownByBanType).map(([k, v]) => ({ k, v })));
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [pending, start] = useTransition();
+  const uid = useId();
   const set = <K extends keyof TypeDraft>(k: K, v: TypeDraft[K]) => setT((s) => ({ ...s, [k]: v }));
   const setField = (i: number, patch: Partial<FieldDef>) => set("fields", t.fields.map((f, k) => (k === i ? { ...f, ...patch } : f)));
   const move = (i: number, d: -1 | 1) => {
@@ -88,16 +90,12 @@ export function RequestTypeEditor({ initial, icons }: { initial: TypeDraft; icon
           <span className="nv-field-label">Beschreibung</span>
           <input className="nv-input mt-1" value={t.description} onChange={(e) => set("description", e.target.value)} maxLength={400} />
         </label>
-        <label>
-          <span className="nv-field-label">Icon</span>
-          <select className="nv-input mt-1" value={t.icon} onChange={(e) => set("icon", e.target.value)}>
-            {icons.map((i) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <label htmlFor={`${uid}-icon`} className="nv-field-label">
+            Icon
+          </label>
+          <Select id={`${uid}-icon`} className="mt-1" value={t.icon} onChange={(v) => set("icon", v)} options={icons.map((i) => ({ value: i, label: i }))} />
+        </div>
         <label>
           <span className="nv-field-label">Reihenfolge</span>
           <input type="number" className="nv-input mt-1" value={t.order} onChange={(e) => set("order", Number(e.target.value))} />
@@ -106,26 +104,18 @@ export function RequestTypeEditor({ initial, icons }: { initial: TypeDraft; icon
 
       <fieldset className="nv-card p-5 grid gap-4 sm:grid-cols-2">
         <legend className="nv-mono px-1">Rechte &amp; Ablauf</legend>
-        <label>
-          <span className="nv-field-label">Sichtbar ab</span>
-          <select className="nv-input mt-1" value={t.visibleFrom} onChange={(e) => set("visibleFrom", e.target.value as Level)}>
-            {LEVELS.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="nv-field-label">Entscheiden ab</span>
-          <select className="nv-input mt-1" value={t.decideFrom} onChange={(e) => set("decideFrom", e.target.value as Level)}>
-            {LEVELS.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <label htmlFor={`${uid}-visible`} className="nv-field-label">
+            Sichtbar ab
+          </label>
+          <Select<Level> id={`${uid}-visible`} className="mt-1" value={t.visibleFrom} onChange={(v) => set("visibleFrom", v)} options={LEVELS} />
+        </div>
+        <div>
+          <label htmlFor={`${uid}-decide`} className="nv-field-label">
+            Entscheiden ab
+          </label>
+          <Select<Level> id={`${uid}-decide`} className="mt-1" value={t.decideFrom} onChange={(v) => set("decideFrom", v)} options={LEVELS} />
+        </div>
         <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
           {check("active", "Aktiv", "Spieler können diese Art stellen.")}
           {check("fourEyes", "Vier-Augen-Prinzip", "Entscheidung braucht die Zustimmung einer zweiten Person.")}
@@ -169,16 +159,12 @@ export function RequestTypeEditor({ initial, icons }: { initial: TypeDraft; icon
               <span className="nv-field-label">Key</span>
               <input className="nv-input mt-1 font-mono text-sm" value={f.key} onChange={(e) => setField(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })} />
             </label>
-            <label>
-              <span className="nv-field-label">Typ</span>
-              <select className="nv-input mt-1" value={f.type} onChange={(e) => setField(i, { type: e.target.value as FieldDef["type"] })}>
-                {FIELD_TYPES.map((x) => (
-                  <option key={x.value} value={x.value}>
-                    {x.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div>
+              <label htmlFor={`${uid}-field-${i}-type`} className="nv-field-label">
+                Typ
+              </label>
+              <Select<FieldDef["type"]> id={`${uid}-field-${i}-type`} className="mt-1" value={f.type} onChange={(type) => setField(i, { type })} options={FIELD_TYPES} />
+            </div>
             <div className="flex gap-1">
               <button type="button" className="nv-btn nv-btn-quiet nv-btn-sm" aria-label="Nach oben" onClick={() => move(i, -1)}>
                 <ArrowUp size={14} aria-hidden />
@@ -222,14 +208,22 @@ export function RequestTypeEditor({ initial, icons }: { initial: TypeDraft; icon
               <span className="nv-field-label">Key</span>
               <input className="nv-input mt-1 font-mono text-sm" value={o.key} onChange={(e) => set("outcomes", t.outcomes.map((x, k) => (k === i ? { ...x, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") } : x)))} />
             </label>
-            <label>
-              <span className="nv-field-label">Einordnung</span>
-              <select className="nv-input mt-1" value={o.category} onChange={(e) => set("outcomes", t.outcomes.map((x, k) => (k === i ? { ...x, category: e.target.value as Outcome["category"] } : x)))}>
-                <option value="ACCEPTED">angenommen</option>
-                <option value="PARTIAL">teilweise</option>
-                <option value="REJECTED">abgelehnt (startet Sperrfrist)</option>
-              </select>
-            </label>
+            <div>
+              <label htmlFor={`${uid}-outcome-${i}-category`} className="nv-field-label">
+                Einordnung
+              </label>
+              <Select<Outcome["category"]>
+                id={`${uid}-outcome-${i}-category`}
+                className="mt-1 w-64 max-w-full"
+                value={o.category}
+                onChange={(category) => set("outcomes", t.outcomes.map((x, k) => (k === i ? { ...x, category } : x)))}
+                options={[
+                  { value: "ACCEPTED", label: "angenommen" },
+                  { value: "PARTIAL", label: "teilweise" },
+                  { value: "REJECTED", label: "abgelehnt (startet Sperrfrist)" },
+                ]}
+              />
+            </div>
             <button type="button" className="nv-btn nv-btn-quiet nv-btn-sm" aria-label="Ergebnis entfernen" onClick={() => set("outcomes", t.outcomes.filter((_, k) => k !== i))}>
               <Trash size={14} aria-hidden />
             </button>

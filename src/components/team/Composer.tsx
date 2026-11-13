@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { ChatsCircle, LockSimple, PaperPlaneRight, Sparkle } from "@phosphor-icons/react/ssr";
 import { renderTemplate, type TemplateVars } from "@/lib/messages/placeholders";
 import { AttachmentInput, type AttachmentValue } from "@/components/AttachmentInput";
+import { Select } from "@/components/Select";
 
 export interface ComposerTemplate {
   id: string;
@@ -53,6 +54,7 @@ export function Composer({
   const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [aiPending, startAi] = useTransition();
+  const uid = useId();
   const missing = renderTemplate(body, vars).missing;
 
   const insert = (t: ComposerTemplate) => {
@@ -64,25 +66,21 @@ export function Composer({
     <section className={`nv-card p-5 ${internal ? "!border-[color:var(--tone-warn)]" : ""}`} aria-label="Antwort schreiben">
       <div className="flex flex-wrap gap-2 items-center">
         {templates.length > 0 && (
-          <label className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm">
             <ChatsCircle size={16} className="text-muted" aria-hidden />
-            <span className="sr-only">Baustein einfügen</span>
-            <select
-              className="nv-input !py-1.5 text-sm max-w-[260px]"
+            <Select
+              ariaLabel="Baustein einfügen"
+              size="sm"
+              className="w-[260px] max-w-full"
               value=""
-              onChange={(e) => {
-                const t = templates.find((x) => x.id === e.target.value);
+              placeholder="Baustein einfügen …"
+              options={templates.map((t) => ({ value: t.id, label: t.title }))}
+              onChange={(id) => {
+                const t = templates.find((x) => x.id === id);
                 if (t) insert(t);
               }}
-            >
-              <option value="">Baustein einfügen …</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
         )}
         {aiDraft && (
           <button
@@ -135,16 +133,12 @@ export function Composer({
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {extraOptions && !internal && (
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted">{extraLabel}</span>
-            <select className="nv-input !py-1.5 text-sm" value={extra} onChange={(e) => setExtra(e.target.value)}>
-              {extraOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex items-center gap-2 text-sm">
+            <label htmlFor={`${uid}-extra`} className="text-muted">
+              {extraLabel}
+            </label>
+            <Select id={`${uid}-extra`} size="sm" className="w-56 max-w-full" value={extra} onChange={setExtra} options={extraOptions} />
+          </div>
         )}
         <button
           type="button"

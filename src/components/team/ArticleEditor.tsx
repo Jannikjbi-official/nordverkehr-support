@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Markdown } from "@/components/Markdown";
 import { deleteArticleAction, saveArticleAction } from "@/app/actions/team-content";
 import { confirmDialog } from "@/components/ConfirmDialog";
+import { Select } from "@/components/Select";
 
 interface Initial {
   id?: string;
@@ -91,16 +92,12 @@ export function ArticleEditor({ initial, categories, articles, canDelete }: { in
           {msg && <p className={msg.tone === "ok" ? "text-xs text-muted" : "nv-error"} role="status">{msg.text}</p>}
         </div>
         <div className="nv-card p-4 space-y-3">
-          <label className="block">
-            <span className="nv-field-label">Kategorie</span>
-            <select className="nv-input mt-1" value={a.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div>
+            <label htmlFor="article-category" className="nv-field-label">
+              Kategorie
+            </label>
+            <Select id="article-category" className="mt-1" value={a.categoryId} onChange={(v) => set("categoryId", v)} options={categories.map((c) => ({ value: c.id, label: c.title }))} />
+          </div>
           <label className="block">
             <span className="nv-field-label">Slug (URL)</span>
             <input className="nv-input mt-1 font-mono text-sm" value={a.slug} placeholder="wird aus dem Titel erzeugt" onChange={(e) => set("slug", e.target.value)} />

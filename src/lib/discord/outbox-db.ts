@@ -8,7 +8,6 @@ import { processJob, type OutboxJobLike, type OutboxPayload, type OutboxStore } 
 
 export const prismaOutboxStore: OutboxStore = {
   async complete(job, result) {
-    const now = new Date();
     await db.outboxJob.update({ where: { id: job.id }, data: { status: "DONE", attempts: { increment: 1 }, result, lastError: null, lockedAt: null } });
     const skipped = result.skipped === "test";
     const p = job.payload as OutboxPayload;
@@ -16,10 +15,6 @@ export const prismaOutboxStore: OutboxStore = {
       const data = skipped ? { deliveryStatus: "NOT_SENT" as const, deliveryError: null } : { deliveryStatus: "SENT" as const, deliveryError: null };
       if (job.ticketMessageId) await db.ticketMessage.updateMany({ where: { id: job.ticketMessageId }, data });
       if (job.requestMessageId) await db.requestMessage.updateMany({ where: { id: job.requestMessageId }, data });
-    }
-    // Eigene Thread-Nachricht merken, damit der Abgleich sie nicht als neue Discord-Nachricht übernimmt
-    if (p.type === "THREAD_MESSAGE" && result.messageId && job.ticketId) {
-      await db.syncedDiscordMessage.create({ data: { id: result.messageId, ticketId: job.ticketId, createdAt: now } }).catch(() => {});
     }
   },
   async reschedule(job, error, runAt) {
@@ -106,11 +101,7 @@ export async function runOutbox(opts: { ids?: string[]; limit?: number } = {}) {
       await db.outboxJob.update({ where: { id: job.id }, data: { status: "PENDING", lockedAt: null, lastError: String(err) } }).catch(() => {});
     }
   };
-  // Thread-Nachrichten in Reihenfolge (sonst kann Discord sie vertauschen)
-  const ordered = jobs.filter((j) => j.type === "THREAD_MESSAGE");
-  const rest = jobs.filter((j) => j.type !== "THREAD_MESSAGE");
-  for (const j of ordered) await one(j);
-  for (let i = 0; i < rest.length; i += CONCURRENCY) await Promise.all(rest.slice(i, i + CONCURRENCY).map(one));
+  for (let i = 0; i < jobs.length; i += CONCURRENCY) await Promise.all(jobs.slice(i, i + CONCURRENCY).map(one));
   return jobs.length;
 }
 

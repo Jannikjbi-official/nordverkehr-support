@@ -8,15 +8,14 @@ describe("Custom-IDs (eigenes Präfix nvs:)", () => {
   it("parst alle Support-Knöpfe", () => {
     expect(parseCustomId(ids.panelTicket)).toEqual({ kind: "panelTicket" });
     expect(parseCustomId(ids.newTicket("technik"))).toEqual({ kind: "newTicket", category: "technik" });
-    expect(parseCustomId(ids.claim("abcdefghij12"))).toEqual({ kind: "claim", ticketId: "abcdefghij12" });
-    expect(parseCustomId(ids.replySubmit("abcdefghij12"))).toEqual({ kind: "replySubmit", ticketId: "abcdefghij12" });
     expect(parseCustomId(ids.rate("abcdefghij12", 4))).toEqual({ kind: "rate", ticketId: "abcdefghij12", stars: 4 });
   });
 
   it("ignoriert Knöpfe des Bewerbungsportals (nv:) und Unsinn", () => {
     expect(parseCustomId("nv:claim:abcdefghij12")).toBeNull();
     expect(parseCustomId("nvs:t:rate:abcdefghij12:9")).toBeNull();
-    expect(parseCustomId("nvs:t:claim:../../x")).toBeNull();
+    expect(parseCustomId("nvs:t:claim:abcdefghij12")).toBeNull(); // Threads/Claim-Knopf gibt es nicht mehr
+    expect(parseCustomId("nvs:t:rate:../../x:3")).toBeNull();
   });
 
   it("Präfixe überschneiden sich nicht", () => {

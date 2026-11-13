@@ -1,7 +1,7 @@
 /**
  * Zustellung von Discord-Nachrichten über eine Outbox-Tabelle.
  *
- * Jede DM, jeder Thread-Post und jeder Log-Eintrag wird zuerst gespeichert und
+ * Jede DM und jeder Log-Eintrag wird zuerst gespeichert und
  * dann zugestellt – direkt nach der Aktion (via `after()`) und, falls das
  * scheitert, mit Backoff erneut durch die Hintergrundarbeiten (Cron bzw.
  * gedrosselt bei Seitenaufrufen – es gibt keinen Dauer-Worker).
@@ -13,9 +13,7 @@ export type DmPurpose = "ticket_reply" | "ticket_status" | "ticket_reminder" | "
 
 export type OutboxPayload =
   | { type: "DM"; discordUserId: string; message: RESTPostAPIChannelMessageJSONBody; purpose: DmPurpose }
-  | { type: "CHANNEL_MESSAGE"; channelId: string; message: RESTPostAPIChannelMessageJSONBody; kind?: "log" | "panel" }
-  | { type: "THREAD_MESSAGE"; threadId: string; message: RESTPostAPIChannelMessageJSONBody; unarchive?: boolean }
-  | { type: "THREAD_UPDATE"; threadId: string; name?: string; archived?: boolean; locked?: boolean };
+  | { type: "CHANNEL_MESSAGE"; channelId: string; message: RESTPostAPIChannelMessageJSONBody; kind?: "log" | "panel" };
 
 /** Test-/Seed-Nutzer haben keine echten Discord-IDs (beginnen mit 0) */
 export const isTestDiscordId = (id: string) => /^0\d+$/.test(id);
@@ -61,16 +59,6 @@ export async function executeJob(job: OutboxJobLike, api: DiscordApi, now: () =>
       case "CHANNEL_MESSAGE": {
         const messageId = await api.postMessage(payload.channelId, payload.message);
         return { kind: "done", result: { messageId } };
-      }
-      case "THREAD_MESSAGE": {
-        // Archivierte Threads nehmen keine Nachrichten an → vorher öffnen
-        if (payload.unarchive) await api.updateThread(payload.threadId, { archived: false }).catch(() => {});
-        const messageId = await api.postMessage(payload.threadId, payload.message);
-        return { kind: "done", result: { messageId } };
-      }
-      case "THREAD_UPDATE": {
-        await api.updateThread(payload.threadId, { name: payload.name, archived: payload.archived, locked: payload.locked });
-        return { kind: "done", result: { threadId: payload.threadId } };
       }
       default:
         return { kind: "failed", error: "Unbekannter Job-Typ", dmClosed: false };

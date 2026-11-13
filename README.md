@@ -30,11 +30,11 @@ Hilfe-Center, Tickets und Anträge für **Nordverkehr** (Hamburg-Roleplay, Start
 - **Statusseite:** Gameserver (FiveM, Spieler online, 60 s gecacht), TeamSpeak, bekannte Probleme und Wartungen.
 - 14 Start-Artikel (u. a. „SaltyChat verbindet nicht“, „Wie komme ich auf die Whitelist?“, „FiveM startet nicht“, „Was ist Metagaming?“, „Wie stelle ich einen Entbannungsantrag?“).
 
-### Tickets – Web und Discord verbunden
+### Tickets – im Portal, Benachrichtigung per Discord-DM
 - Kategorien Technik, Spielerbeschwerde, Bug, Frage zum Regelwerk, Sonstiges – je Kategorie eigene Pflichtfelder (Beschwerde: Datum, Uhrzeit, Beteiligte, Clip-Link oder Begründung).
 - Vor dem Absenden: passende Hilfe-Artikel („Vielleicht hilft dir das schon“).
 - Anhänge: Screenshots (neu codiert, ohne Metadaten, max. 8 MB, max. 5) und Clip-Links (YouTube, Twitch, Medal).
-- **Discord:** Panel mit Knopf → Kategorie-Auswahl → Formular → **privater Thread** (nur Spieler + Support). Nachrichten aus dem Web erscheinen im Thread und umgekehrt. Alle Tickets – egal wo erstellt – im Web-Dashboard.
+- **Discord:** Panel mit Knopf → Kategorie-Auswahl → Formular → Ticket im Portal. Geschrieben wird **nur im Portal** (keine Threads, kein Abgleich – spart Rechenzeit auf Vercel); Discord liefert DMs bei Antworten und die Bewertungs-Knöpfe.
 - Status offen → in Bearbeitung → wartet auf Spieler → gelöst → geschlossen, automatisch nach Antworten. DM vom NV Lotse bei jeder Antwort (abschaltbar).
 - Bewertung 1–5 Sterne + Kommentar (auch per Knopf in der DM), Auto-Schließen nach X Tagen mit Erinnerung vorher, Transkript für Spieler und Team.
 
@@ -63,7 +63,7 @@ Vercel-Funktionen sind serverless – ein dauerhaft verbundener Discord-Bot (Gat
  Spieler/Team (Browser) ──► support.nordverkehr.xyz (Vercel, fra1) ──► MongoDB Atlas (DB nordverkehr_support)
                                │  Seiten, Server Actions, API
  Discord (HTTP-Interaktionen) ─┤  /api/discord/interactions  ── Weiterleitung ──► bewerbung.nordverkehr.xyz
-                               │  Outbox → Discord REST (DMs, Thread-Posts)
+                               │  Outbox → Discord REST (DMs, Log)
                                └─ Hintergrundarbeiten (Cron + gedrosselt bei Seitenaufrufen)
 ```
 
@@ -71,10 +71,10 @@ Vercel-Funktionen sind serverless – ein dauerhaft verbundener Discord-Bot (Gat
 |---|---|
 | Knöpfe, Formulare, Slash-Befehle | HTTP-Interactions-Endpoint auf Vercel (Signatur geprüft) |
 | Web → Discord | Outbox: Nachricht wird gespeichert und sofort per REST gepostet; Wiederholung mit Backoff |
-| Discord → Web | **Abholen per REST** (`GET /channels/{thread}/messages?after=…`): sobald jemand das Ticket im Portal öffnet, per Knopf „Antwort ins Ticket“ im Thread und bei den Hintergrundarbeiten. Idempotent (jede Discord-Nachricht nur einmal), eigene Spiegel-Nachrichten werden nie zurückübernommen. |
+| Discord → Web | nur über Panel/Formular (neues Ticket) und Bewertungs-Knöpfe – Antworten laufen ausschließlich im Portal |
 | Auto-Close, Erinnerungen, Löschfristen | `/api/cron/housekeeping` (Vercel Cron) **und** gedrosselt bei normalen Seitenaufrufen (höchstens alle 5 Min., mit Sperre in der DB) |
 
-Was ohne Worker anders ist: Discord-Nachrichten stehen nicht „in derselben Sekunde“ im Portal, sondern spätestens, wenn jemand das Ticket öffnet. Rollenänderungen greifen nach höchstens 60 s (Cache), nicht sofort.
+Was ohne Worker anders ist: Rollenänderungen greifen nach höchstens 60 s (Cache), nicht sofort.
 
 ---
 
@@ -182,19 +182,17 @@ git push -u origin main
 1. **OAuth2 → Redirects** ergänzen (die des Bewerbungsportals bleiben):
    - `https://support.nordverkehr.xyz/api/auth/callback/discord`
    - `http://localhost:3000/api/auth/callback/discord` (Entwicklung)
-2. **Bot → Privileged Gateway Intents:** **Message Content Intent** einschalten. Ohne ihn liefert Discord die Texte aus Ticket-Threads leer (gilt auch für REST-Abrufe). Das Bewerbungsportal stört das nicht.
-3. **Bot-Rechte** auf dem Server (Bot-Rolle bzw. im Ticket-Channel):
+2. **Bot-Rechte** auf dem Server (Bot-Rolle bzw. im Ticket-Channel):
    - Kanäle ansehen, Nachrichten senden, Links einbetten, Nachrichtenverlauf lesen
-   - **Private Threads erstellen**, **In Threads Nachrichten senden**, **Threads verwalten**
    - **Mitglieder bannen** – nur, um die Bannliste lesen zu können (Erkennung gebannter Spieler). Der Bot bannt niemanden.
-4. **Ticket-Channel** anlegen (z. B. `#support`): Spieler dürfen lesen, aber nicht schreiben; die **Support-Rolle** bekommt dort „Threads verwalten“ – damit sieht das Team alle privaten Ticket-Threads.
-5. Im Portal als Leitung: *Team-Bereich → Einstellungen & Discord*:
+3. **Panel-Channel** anlegen (z. B. `#support`): Spieler dürfen lesen, aber nicht schreiben. Dort liegt nur das Panel.
+4. Im Portal als Leitung: *Team-Bereich → Einstellungen & Discord*:
    - **Befehle registrieren** (`/ticket`, `/antrag`, `/support-panel`)
    - **Interactions-URL setzen** (erst, wenn `INTERACTIONS_FORWARD_URL` gesetzt und der Patch im Bewerbungsportal eingespielt ist)
    - **Panel posten** (oder in Discord `/support-panel` im Ticket-Channel)
-   - Die Diagnose oben zeigt, ob Token, URL, Intent, Rollen und Channels passen.
+   - Die Diagnose oben zeigt, ob Token, URL, Rollen und Channels passen.
 
-> Beschwerden über Teammitglieder bekommen **nie** einen Discord-Thread: Wer „Threads verwalten“ hat, sieht alle privaten Threads – Discord kann ein beschuldigtes Mod-Mitglied dort nicht aussperren. Diese Tickets laufen nur im Portal.
+> Alle Tickets laufen nur im Portal – auch Beschwerden über Teammitglieder, die die beschuldigte Person dort nie sieht.
 
 ---
 
@@ -219,7 +217,7 @@ git push -u origin main
 | `SUPPORT_ROLE_ID` | Rolle Support | Rechtsklick auf Rolle → ID kopieren | ✅ |
 | `MODERATION_ROLE_ID` | Rolle Moderation | ebenso | ✅ |
 | `LEITUNG_ROLE_ID` | Rolle Leitung | ebenso | ✅ |
-| `DISCORD_TICKET_CHANNEL_ID` | Channel für Panel und private Ticket-Threads | Rechtsklick auf Channel → ID | empfohlen (ohne: Tickets nur im Web) |
+| `DISCORD_TICKET_CHANNEL_ID` | Channel für das Ticket-Panel | Rechtsklick auf Channel → ID | optional |
 | `DISCORD_LOG_CHANNEL_ID` | Log neuer Tickets/Anträge und Entscheidungen | Rechtsklick auf Channel → ID | optional |
 | `INTERACTIONS_FORWARD_URL` | Weiterleitung fremder Interaktionen ans Bewerbungsportal | `https://bewerbung.nordverkehr.xyz/api/discord/interactions` | ✅ (sonst gehen dessen Knöpfe nicht) |
 | `ROLE_CACHE_TTL_SECONDS` | Wie oft Rollen neu geprüft werden | Standard 60 | optional |
@@ -262,10 +260,10 @@ Rollen kommen aus Discord und werden serverseitig geprüft (Bot, Cache 60 s, fai
 ## Betrieb
 
 ### Hintergrundarbeiten
-`/api/cron/housekeeping` erledigt: Outbox-Wiederholungen, fehlende Discord-Threads, Thread-Abgleich (Discord → Web), Erinnerungen, Auto-Close, Schließen gelöster Tickets, Archivieren entschiedener Anträge und einmal täglich die Löschfristen. Zusätzlich anstoßbar unter *Einstellungen & Discord → Hintergrundarbeiten jetzt ausführen*.
+`/api/cron/housekeeping` erledigt: Outbox-Wiederholungen, Erinnerungen, Auto-Close, Schließen gelöster Tickets, Archivieren entschiedener Anträge und einmal täglich die Löschfristen. Zusätzlich anstoßbar unter *Einstellungen & Discord → Hintergrundarbeiten jetzt ausführen*.
 
 ### Brauchen wir einen Worker?
-**Nein.** Das Support-Center läuft komplett auf Vercel. Der Worker des Bewerbungsportals (falls ihr ihn betreibt) kann weiterlaufen – er arbeitet nur mit der Datenbank des Portals und berührt das Support-Center nicht; den Bot-Status („online“) setzt weiterhin nur er. Ein gemeinsamer Worker für beide Projekte wäre möglich, koppelt aber Deployments und Fehler beider Apps – nicht empfohlen. Wollt ihr später Discord-Nachrichten in Echtzeit, ist ein kleiner Worker die Erweiterung (z. B. auf einem vorhandenen Server oder Hetzner CX22).
+**Nein.** Das Support-Center läuft komplett auf Vercel. Der Worker des Bewerbungsportals (falls ihr ihn betreibt) kann weiterlaufen – er arbeitet nur mit der Datenbank des Portals und berührt das Support-Center nicht; den Bot-Status („online“) setzt weiterhin nur er. Ein gemeinsamer Worker für beide Projekte wäre möglich, koppelt aber Deployments und Fehler beider Apps – nicht empfohlen.
 
 ### KI (optional)
 Nur über die Claude API von Anthropic, kostenpflichtig nach Verbrauch. API-Konto in der [Claude Console](https://platform.claude.com) mit Prepaid-Guthaben (5–10 $ reichen lange), Ausgabenlimit setzen, Key als `ANTHROPIC_API_KEY`. Im Portal unter *Einstellungen* einschalten; Monatsbudget (Standard 10 $), Anfragen pro Stunde und Tokens pro Tag begrenzen die Kosten. An Anthropic gehen keine Namen, Discord-IDs oder Bilder; Spielertexte stehen in Datenblöcken mit Zufallsnamen und werden auf Manipulationsversuche geprüft.

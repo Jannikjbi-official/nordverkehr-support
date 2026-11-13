@@ -11,7 +11,6 @@ export const SETTINGS_SCHEMA = z.object({
   "tickets.autoCloseDays": z.number().int().min(1).max(60),
   "tickets.reminderHours": z.number().int().min(1).max(168),
   "tickets.resolvedCloseDays": z.number().int().min(0).max(60),
-  "tickets.discordEnabled": z.boolean(),
   "tickets.dmOnReply": z.boolean(),
   // Anträge
   "requests.archiveDays": z.number().int().min(1).max(365),
@@ -42,7 +41,6 @@ export const DEFAULT_SETTINGS: Settings = {
   "tickets.autoCloseDays": 5,
   "tickets.reminderHours": 24,
   "tickets.resolvedCloseDays": 3,
-  "tickets.discordEnabled": true,
   "tickets.dmOnReply": true,
   "requests.archiveDays": 14,
   "requests.logDecisions": true,
@@ -66,7 +64,6 @@ export const SETTING_LABELS: Record<SettingKey, { label: string; help?: string; 
   "tickets.autoCloseDays": { label: "Auto-Schließen nach … Tagen ohne Antwort", help: "Gilt im Status „wartet auf Spieler“.", group: "Tickets" },
   "tickets.reminderHours": { label: "Erinnerung … Stunden vorher", group: "Tickets" },
   "tickets.resolvedCloseDays": { label: "„Gelöst“ wird nach … Tagen geschlossen", help: "0 = sofort beim nächsten Durchlauf.", group: "Tickets" },
-  "tickets.discordEnabled": { label: "Discord-Threads für Tickets", group: "Tickets" },
   "tickets.dmOnReply": { label: "DM an Spieler bei Team-Antwort", help: "Spieler können DMs zusätzlich selbst abschalten.", group: "Tickets" },
   "requests.archiveDays": { label: "Entschiedene Anträge archivieren nach … Tagen", group: "Anträge" },
   "requests.logDecisions": { label: "Entscheidungen im Discord-Log posten", group: "Anträge" },

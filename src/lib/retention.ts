@@ -14,7 +14,6 @@ export async function runRetention() {
   const oldTickets = await db.ticket.findMany({ where: { status: "CLOSED", closedAt: { lt: monthsAgo(s["retention.ticketMonths"]) } }, select: { id: true }, take: 500 });
   const ticketIds = oldTickets.map((t) => t.id);
   if (ticketIds.length) {
-    await db.syncedDiscordMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
     await db.attachment.deleteMany({ where: { ticketId: { in: ticketIds } } });
     await db.ticketMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
     await db.ticketEvent.deleteMany({ where: { ticketId: { in: ticketIds } } });

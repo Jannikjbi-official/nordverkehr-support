@@ -5,7 +5,6 @@ import { z } from "zod";
 import { assertTeam } from "@/lib/auth/session";
 import { toActionError, type ActionResult } from "@/lib/errors";
 import { addTeamMessage, changeStatus, claimTicket, transferTicket, updateTicketMeta, viewerOf } from "@/lib/tickets/service";
-import { syncTicketFromDiscord } from "@/lib/tickets/sync-db";
 import { deliverNow } from "@/lib/discord/outbox-db";
 
 const id = z.string().regex(/^[a-z0-9]{10,40}$/i);
@@ -87,19 +86,6 @@ export async function teamMetaAction(input: z.input<typeof MetaSchema>): Promise
     const { user, viewer } = await team();
     const { jobIds } = await updateTicketMeta({ viewer, actor: user, ...p });
     return done(p.ticketId, jobIds);
-  } catch (e) {
-    return toActionError(e);
-  }
-}
-
-export async function teamSyncAction(ticketId: string): Promise<ActionResult<{ imported: number }>> {
-  try {
-    const { viewer } = await team();
-    const { loadTicketForTeam } = await import("@/lib/tickets/service");
-    await loadTicketForTeam(viewer, id.parse(ticketId));
-    const imported = await syncTicketFromDiscord(ticketId, { force: true, timeoutMs: 6000 });
-    revalidatePath(`/team/tickets/${ticketId}`);
-    return { ok: true, data: { imported } };
   } catch (e) {
     return toActionError(e);
   }

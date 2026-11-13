@@ -140,6 +140,7 @@ enum AttachmentKind {
 enum OutboxType {
   DM
   CHANNEL_MESSAGE
+  /// veraltet (Discord-Threads entfernt) – nur damit alte Einträge lesbar bleiben
   THREAD_MESSAGE
   THREAD_UPDATE
 }
@@ -188,21 +189,21 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  tickets          Ticket[]          @relation("TicketCreator")
-  claimedTickets   Ticket[]          @relation("TicketClaimer")
-  ticketMessages   TicketMessage[]
-  requests         Request[]         @relation("RequestApplicant")
-  notesAbout       PlayerNote[]      @relation("NoteSubject")
-  notesWritten     PlayerNote[]      @relation("NoteAuthor")
-  sanctions        Sanction[]        @relation("SanctionSubject")
-  attachments      Attachment[]
-  requestComments  RequestComment[]
-  requestVotes     RequestVote[]
-  proposals        RequestDecision[] @relation("DecisionProposer")
-  approvals        RequestDecision[] @relation("DecisionApprover")
-  requestMessages  RequestMessage[]
-  cooldowns        Cooldown[]
-  articles         HelpArticle[]
+  tickets         Ticket[]          @relation("TicketCreator")
+  claimedTickets  Ticket[]          @relation("TicketClaimer")
+  ticketMessages  TicketMessage[]
+  requests        Request[]         @relation("RequestApplicant")
+  notesAbout      PlayerNote[]      @relation("NoteSubject")
+  notesWritten    PlayerNote[]      @relation("NoteAuthor")
+  sanctions       Sanction[]        @relation("SanctionSubject")
+  attachments     Attachment[]
+  requestComments RequestComment[]
+  requestVotes    RequestVote[]
+  proposals       RequestDecision[] @relation("DecisionProposer")
+  approvals       RequestDecision[] @relation("DecisionApprover")
+  requestMessages RequestMessage[]
+  cooldowns       Cooldown[]
+  articles        HelpArticle[]
 
   @@map("sup_users")
 }
@@ -357,54 +358,47 @@ model StatusCache {
 // ─────────────────────────────────────────────────────────────
 
 model Ticket {
-  id                  String         @id @default(cuid()) @map("_id")
+  id                String         @id @default(cuid()) @map("_id")
   /// NVS-2026-0001
-  publicId            String         @unique
+  publicId          String         @unique
   /// technik | beschwerde | bug | regelwerk | sonstiges (siehe lib/tickets/categories.ts)
-  category            String
-  subject             String
+  category          String
+  subject           String
   /// Pflichtfelder je Kategorie (per zod validiert)
-  fields              Json
-  status              TicketStatus   @default(OPEN)
-  priority            TicketPriority @default(NORMAL)
-  tags                String[]       @default([])
-  source              Source         @default(WEB)
-  creatorId           String
-  creator             User           @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  claimedById         String?
-  claimedBy           User?          @relation("TicketClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
-  sensitivity         Sensitivity    @default(NORMAL)
+  fields            Json
+  status            TicketStatus   @default(OPEN)
+  priority          TicketPriority @default(NORMAL)
+  tags              String[]       @default([])
+  source            Source         @default(WEB)
+  creatorId         String
+  creator           User           @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  claimedById       String?
+  claimedBy         User?          @relation("TicketClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
+  sensitivity       Sensitivity    @default(NORMAL)
   /// Discord-IDs von Teammitgliedern, über die sich beschwert wird – sehen das Ticket nie
-  accusedDiscordIds   String[]       @default([])
-
-  // Discord
-  discordChannelId    String?
-  discordThreadId     String?
-  /// Letzte aus Discord übernommene Nachricht (REST-Abgleich ohne Worker)
-  lastSyncedMessageId String?
-  lastSyncAt          DateTime?
+  accusedDiscordIds String[]       @default([])
 
   // Zeiten für Automatik & Statistik
-  firstResponseAt     DateTime?
-  lastPlayerAt        DateTime?
-  lastTeamAt          DateTime?
+  firstResponseAt   DateTime?
+  lastPlayerAt      DateTime?
+  lastTeamAt        DateTime?
   /// Seit wann "wartet auf Spieler" (Auto-Close)
-  waitingSince        DateTime?
-  autoCloseWarnedAt   DateTime?
-  resolvedAt          DateTime?
-  closedAt            DateTime?
-  closedReason        String?
+  waitingSince      DateTime?
+  autoCloseWarnedAt DateTime?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  closedReason      String?
 
   // Bewertung nach dem Schließen
-  rating              Int?
-  ratingComment       String?
-  ratedAt             DateTime?
+  rating        Int?
+  ratingComment String?
+  ratedAt       DateTime?
 
   /// Transkript (Markdown), beim Schließen erzeugt
-  transcript          String?
-  isTest              Boolean        @default(false)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  transcript String?
+  isTest     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   messages    TicketMessage[]
   events      TicketEvent[]
@@ -413,27 +407,26 @@ model Ticket {
   @@index([creatorId])
   @@index([status, updatedAt])
   @@index([claimedById])
-  @@index([discordThreadId])
   @@map("sup_tickets")
 }
 
 model TicketMessage {
-  id              String         @id @default(cuid()) @map("_id")
-  ticketId        String
-  ticket          Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorId        String?
-  author          User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  id               String         @id @default(cuid()) @map("_id")
+  ticketId         String
+  ticket           Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId         String?
+  author           User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
   /// Name zum Zeitpunkt der Nachricht (auch für Discord-Autoren ohne Portal-Konto)
-  authorName      String
-  authorDiscordId String?
-  kind            MessageKind
-  body            String
-  source          Source         @default(WEB)
+  authorName       String
+  authorDiscordId  String?
+  kind             MessageKind
+  body             String
+  source           Source         @default(WEB)
   discordMessageId String?
   /// DM an den Spieler (bei Team-Antworten)
-  deliveryStatus  DeliveryStatus @default(NOT_SENT)
-  deliveryError   String?
-  createdAt       DateTime       @default(now())
+  deliveryStatus   DeliveryStatus @default(NOT_SENT)
+  deliveryError    String?
+  createdAt        DateTime       @default(now())
 
   attachments Attachment[]
   outboxJobs  OutboxJob[]
@@ -441,16 +434,6 @@ model TicketMessage {
   @@index([ticketId, createdAt])
   @@index([discordMessageId])
   @@map("sup_ticket_messages")
-}
-
-/// Idempotenz für den Discord-Abgleich: _id = Discord-Message-ID (atomar eindeutig)
-model SyncedDiscordMessage {
-  id        String   @id @map("_id")
-  ticketId  String
-  createdAt DateTime @default(now())
-
-  @@index([ticketId])
-  @@map("sup_synced_discord_messages")
 }
 
 /// Verlauf: Status, Claim, Priorität, Weitergabe …
@@ -545,21 +528,21 @@ model RequestType {
 }
 
 model Request {
-  id                String           @id @default(cuid()) @map("_id")
+  id          String        @id @default(cuid()) @map("_id")
   /// NVA-2026-0001
-  publicId          String           @unique
-  typeId            String
-  type              RequestType      @relation(fields: [typeId], references: [id])
-  applicantId       String
-  applicant         User             @relation("RequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  publicId    String        @unique
+  typeId      String
+  type        RequestType   @relation(fields: [typeId], references: [id])
+  applicantId String
+  applicant   User          @relation("RequestApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
   /// Antworten { key: value }
-  answers           Json
-  status            RequestStatus    @default(SUBMITTED)
-  source            Source           @default(WEB)
+  answers     Json
+  status      RequestStatus @default(SUBMITTED)
+  source      Source        @default(WEB)
 
   // Strafe, um die es geht
   sanctionId        String?
-  sanction          Sanction?        @relation(fields: [sanctionId], references: [id], onDelete: SetNull)
+  sanction          Sanction? @relation(fields: [sanctionId], references: [id], onDelete: SetNull)
   banRef            String?
   banType           String?
   /// Wer die Strafe ausgesprochen hat – darf nie allein entscheiden
@@ -568,19 +551,19 @@ model Request {
   honestyConfirmedAt DateTime?
 
   // Entscheidung (erst nach gültiger Zustimmung gesetzt)
-  outcomeKey        String?
-  outcomeLabel      String?
-  outcomeCategory   OutcomeCategory?
-  decisionReason    String?
-  decidedAt         DateTime?
-  decidedById       String?
-  approvedById      String?
-  archivedAt        DateTime?
+  outcomeKey      String?
+  outcomeLabel    String?
+  outcomeCategory OutcomeCategory?
+  decisionReason  String?
+  decidedAt       DateTime?
+  decidedById     String?
+  approvedById    String?
+  archivedAt      DateTime?
 
-  lastPlayerAt      DateTime?
-  isTest            Boolean          @default(false)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  lastPlayerAt DateTime?
+  isTest       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   messages    RequestMessage[]
   comments    RequestComment[]

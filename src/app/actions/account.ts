@@ -47,7 +47,6 @@ export async function deleteAccountAction(confirmText: string): Promise<ActionRe
     }
     const tickets = await db.ticket.findMany({ where: { creatorId: user.id }, select: { id: true } });
     const ticketIds = tickets.map((t) => t.id);
-    await db.syncedDiscordMessage.deleteMany({ where: { ticketId: { in: ticketIds } } });
     await db.outboxJob.deleteMany({ where: { ticketId: { in: ticketIds } } });
     // Eigene Nachrichten in fremden Vorgängen gibt es für Spieler nicht; Kaskaden löschen den Rest
     await db.user.delete({ where: { id: user.id } });

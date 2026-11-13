@@ -9,23 +9,21 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
-import type { DiscordApi, DiscordMessageInfo } from "@/lib/discord/client";
+import type { DiscordApi } from "@/lib/discord/client";
 
 let rs: MongoMemoryReplSet;
 type Mods = {
   db: typeof import("@/lib/db").db;
   tickets: typeof import("@/lib/tickets/service");
   requests: typeof import("@/lib/requests/service");
-  sync: typeof import("@/lib/tickets/sync-db");
   queries: typeof import("@/lib/team/queries");
   outbox: typeof import("@/lib/discord/outbox-db");
   client: typeof import("@/lib/discord/client");
 };
 let m: Mods;
 
-// Gefälschte Discord-API: merkt sich alle Aufrufe, liefert Thread-Nachrichten aus `threadMessages`
+// Gefälschte Discord-API: merkt sich alle Aufrufe
 const calls: string[] = [];
-let threadMessages: DiscordMessageInfo[] = [];
 let nextId = 5000;
 const fakeApi: DiscordApi = {
   getMember: async () => null,
@@ -38,10 +36,6 @@ const fakeApi: DiscordApi = {
   },
   editMessage: async () => {},
   deleteMessage: async () => {},
-  createPrivateThread: async (ch, name) => (calls.push(`thread:${ch}:${name}`), "thread-1"),
-  addThreadMember: async (t, u) => void calls.push(`member:${t}:${u}`),
-  updateThread: async (t, p) => void calls.push(`update:${t}:${JSON.stringify(p)}`),
-  getMessages: async () => threadMessages,
 };
 
 beforeAll(async () => {
@@ -60,7 +54,6 @@ beforeAll(async () => {
     db: (await import("@/lib/db")).db,
     tickets: await import("@/lib/tickets/service"),
     requests: await import("@/lib/requests/service"),
-    sync: await import("@/lib/tickets/sync-db"),
     queries: await import("@/lib/team/queries"),
     outbox: await import("@/lib/discord/outbox-db"),
     client: await import("@/lib/discord/client"),
@@ -185,39 +178,27 @@ describe("Gebannte Spieler & Sperrfristen", () => {
   });
 });
 
-describe("Sync Web ↔ Discord (ohne Worker)", () => {
-  it("Thread anlegen, Discord-Nachrichten idempotent übernehmen, keine Echo-Schleife", async () => {
+describe("Tickets: Web + DM (ohne Discord-Threads)", () => {
+  it("Team-Antwort im Web geht per DM raus, nichts landet in einem Thread", async () => {
     const player = await m.db.user.create({ data: { discordId: "555555555555555555", username: "echt", globalName: "Echter Spieler", discordCreatedAt: new Date() } });
     const { ticket } = await m.tickets.createTicket({ creator: player, category: "technik", subject: "Kein Ton", body: "Ich höre niemanden im Voice, seit heute.", fields: { area: "TeamSpeak / SaltyChat" }, source: "WEB" });
-    const threadId = await m.tickets.ensureDiscordThread(ticket.id);
-    expect(threadId).toBe("thread-1");
-    expect(calls).toContain(`member:thread-1:${player.discordId}`);
-
-    // Team antwortet im Web → Spiegel-Nachricht + DM
+    calls.length = 0;
     const { u: hanna, v } = await viewer("hanna.mod");
     const { jobIds } = await m.tickets.addTeamMessage({ viewer: v, actor: hanna, ticketId: ticket.id, body: "Moin, ist SaltyChat aktiviert?" });
     await m.outbox.runOutbox({ ids: jobIds });
     expect(calls.some((c) => c.startsWith("dm:555555555555555555"))).toBe(true);
-    const mirror = await m.db.syncedDiscordMessage.findMany({ where: { ticketId: ticket.id } });
-    expect(mirror.length).toBeGreaterThanOrEqual(2); // Intro + Spiegel
+    expect(calls.some((c) => c.includes("thread"))).toBe(false);
+    const msg = await m.db.ticketMessage.findFirstOrThrow({ where: { ticketId: ticket.id, kind: "TEAM" } });
+    expect(msg.deliveryStatus).toBe("SENT");
 
-    // Discord liefert: Bot-Spiegel (wird ignoriert) + Antwort des Spielers im Thread
-    const t0 = new Date();
-    threadMessages = [
-      ...mirror.map((s) => ({ id: s.id, channelId: "thread-1", content: "(Bot)", authorId: "bot", authorName: "NV Lotse", authorIsBot: true, type: 0, createdAt: t0, attachments: [] })),
-      { id: "9001", channelId: "thread-1", content: "Ja, ist an. Geht trotzdem nicht.", authorId: player.discordId, authorName: "Echter Spieler", authorIsBot: false, type: 0, createdAt: new Date(t0.getTime() + 1000), attachments: [] },
-    ];
-    expect(await m.sync.syncTicketFromDiscord(ticket.id, { force: true })).toBe(1);
-    expect(await m.sync.syncTicketFromDiscord(ticket.id, { force: true })).toBe(0); // idempotent
-    const msgs = await m.db.ticketMessage.findMany({ where: { ticketId: ticket.id }, orderBy: { createdAt: "asc" } });
-    expect(msgs.filter((x) => x.source === "DISCORD")).toHaveLength(1);
-    expect(msgs.at(-1)?.kind).toBe("PLAYER");
+    // Spieler antwortet im Portal → Ticket wieder in Bearbeitung
+    await m.tickets.addPlayerMessage({ user: player, ticketId: ticket.id, body: "Ja, ist an. Geht trotzdem nicht." });
     const after = await m.db.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
-    expect(after.status).toBe("IN_PROGRESS"); // Spieler hat geantwortet
+    expect(after.status).toBe("IN_PROGRESS");
     expect(after.firstResponseAt).not.toBeNull();
   });
 
-  it("Beschwerden über Teammitglieder bekommen nie einen Thread", async () => {
+  it("Beschwerden über Teammitglieder sieht die beschuldigte Person nie", async () => {
     const player = await m.db.user.findFirstOrThrow({ where: { discordId: "555555555555555555" } });
     const ole = await user("ole.leitung");
     const { ticket } = await m.tickets.createTicket({
@@ -230,7 +211,6 @@ describe("Sync Web ↔ Discord (ohne Worker)", () => {
       source: "WEB",
     });
     expect(ticket.sensitivity).toBe("TEAM_COMPLAINT");
-    expect(await m.tickets.ensureDiscordThread(ticket.id)).toBeNull();
     const { v } = await viewer("ole.leitung");
     await expect(m.tickets.loadTicketForTeam(v, ticket.id)).rejects.toThrow();
   });

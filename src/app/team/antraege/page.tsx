@@ -7,6 +7,7 @@ import { requestTeamWhere, teamCanSeeRequest } from "@/lib/perms";
 import { viewerOf } from "@/lib/tickets/service";
 import { REQUEST_STATUS_LABEL_TEAM } from "@/lib/requests/model";
 import { EmptyState, RequestStatusBadge, formatRelative } from "@/components/ui";
+import { FormSelect } from "@/components/FormSelect";
 
 export const metadata: Metadata = { title: "Anträge" };
 
@@ -52,18 +53,18 @@ export default async function TeamRequestsPage({ searchParams }: { searchParams:
       </nav>
       <form className="mt-4 flex flex-wrap gap-2 items-end" method="get">
         {typeFilter && <input type="hidden" name="art" value={typeFilter.slug} />}
-        <label>
-          <span className="nv-field-label">Status</span>
-          <select name="status" defaultValue={sp.status ?? "offen"} className="nv-input mt-1">
-            <option value="offen">Offen</option>
-            <option value="alle">Alle</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {REQUEST_STATUS_LABEL_TEAM[s]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <label htmlFor="antraege-status" className="nv-field-label">
+            Status
+          </label>
+          <FormSelect
+            id="antraege-status"
+            name="status"
+            defaultValue={status ?? "alle"}
+            className="mt-1 w-56"
+            options={[{ value: "offen", label: "Offen" }, { value: "alle", label: "Alle" }, ...STATUSES.map((s) => ({ value: s, label: REQUEST_STATUS_LABEL_TEAM[s] }))]}
+          />
+        </div>
         <label>
           <span className="nv-field-label">Suche</span>
           <input name="q" defaultValue={sp.q ?? ""} className="nv-input mt-1" placeholder="ID oder Name" />

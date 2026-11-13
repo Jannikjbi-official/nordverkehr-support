@@ -31,7 +31,7 @@ export default async function PrivacyPage() {
               <strong>Login über Discord</strong> (Scope <code>identify</code>): deine Discord-ID, dein Name und Avatar. Keine E-Mail, keine Server-Liste. Über den Bot prüfen wir, ob du auf unserem Discord bist, welche Team-Rollen du hast und ob du dort gebannt bist.
             </li>
             <li>
-              <strong>Tickets</strong>: Kategorie, deine Angaben, Nachrichten, Anhänge (Bilder werden neu gespeichert, Metadaten wie GPS entfernt) und Clip-Links, Status und deine Bewertung. Läuft ein Ticket auch in Discord, liegen die Nachrichten zusätzlich in unserem privaten Discord-Thread.
+              <strong>Tickets</strong>: Kategorie, deine Angaben, Nachrichten, Anhänge (Bilder werden neu gespeichert, Metadaten wie GPS entfernt) und Clip-Links, Status und deine Bewertung.
             </li>
             <li>
               <strong>Anträge</strong>: deine Antworten, Rückfragen und die Entscheidung mit Begründung. Intern: Diskussion und Abstimmung des Teams.

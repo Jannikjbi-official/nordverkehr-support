@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { deleteIncidentAction, incidentUpdateAction, saveIncidentAction } from "@/app/actions/team-content";
 import { confirmDialog } from "@/components/ConfirmDialog";
+import { Select } from "@/components/Select";
 
 interface Incident {
   id?: string;
@@ -36,6 +37,7 @@ function IncidentForm({ initial, onDone }: { initial: Incident; onDone: () => vo
   const [f, setF] = useState({ ...initial, startsAt: toLocal(initial.startsAt), endsAt: toLocal(initial.endsAt) });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const uid = useId();
   return (
     <form
       className="nv-card p-5 grid gap-3 sm:grid-cols-2"
@@ -61,21 +63,37 @@ function IncidentForm({ initial, onDone }: { initial: Incident; onDone: () => vo
         <span className="nv-field-label">Titel</span>
         <input className="nv-input mt-1" value={f.title} maxLength={140} onChange={(e) => setF({ ...f, title: e.target.value })} required />
       </label>
-      <label>
-        <span className="nv-field-label">Art</span>
-        <select className="nv-input mt-1" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as Incident["kind"] })}>
-          <option value="PROBLEM">Bekanntes Problem</option>
-          <option value="MAINTENANCE">Wartung</option>
-        </select>
-      </label>
-      <label>
-        <span className="nv-field-label">Schwere</span>
-        <select className="nv-input mt-1" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value as Incident["severity"] })}>
-          <option value="INFO">Info</option>
-          <option value="MINOR">Eingeschränkt</option>
-          <option value="MAJOR">Störung</option>
-        </select>
-      </label>
+      <div>
+        <label htmlFor={`${uid}-kind`} className="nv-field-label">
+          Art
+        </label>
+        <Select<Incident["kind"]>
+          id={`${uid}-kind`}
+          className="mt-1"
+          value={f.kind}
+          onChange={(kind) => setF({ ...f, kind })}
+          options={[
+            { value: "PROBLEM", label: "Bekanntes Problem" },
+            { value: "MAINTENANCE", label: "Wartung" },
+          ]}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${uid}-severity`} className="nv-field-label">
+          Schwere
+        </label>
+        <Select<Incident["severity"]>
+          id={`${uid}-severity`}
+          className="mt-1"
+          value={f.severity}
+          onChange={(severity) => setF({ ...f, severity })}
+          options={[
+            { value: "INFO", label: "Info" },
+            { value: "MINOR", label: "Eingeschränkt" },
+            { value: "MAJOR", label: "Störung" },
+          ]}
+        />
+      </div>
       <label>
         <span className="nv-field-label">Beginn</span>
         <input type="datetime-local" className="nv-input mt-1" value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} required />

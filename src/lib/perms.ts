@@ -64,11 +64,6 @@ export function sensitivityFor(categoryDefault: Sensitivity, accusedDiscordIds: 
   return categoryDefault;
 }
 
-/** Darf ein Ticket in einen (für Mods einsehbaren) Discord-Thread? Beschwerden über Teammitglieder nie. */
-export function ticketMayUseDiscord(t: Pick<TicketLike, "sensitivity">) {
-  return t.sensitivity !== "TEAM_COMPLAINT";
-}
-
 /** Wem darf ein Ticket weitergegeben werden? (Ziel muss es selbst sehen dürfen) */
 export function canReceiveTicket(target: Viewer, t: TicketLike) {
   return teamCanSeeTicket(target, t);

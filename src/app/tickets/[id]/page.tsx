@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, DiscordLogo, FileText } from "@phosphor-icons/react/ssr";
+import { ArrowLeft, FileText } from "@phosphor-icons/react/ssr";
 import { db } from "@/lib/db";
 import { requirePlayer } from "@/lib/auth/session";
-import { syncTicketFromDiscord } from "@/lib/tickets/sync-db";
 import { categoryLabel, displayFields } from "@/lib/tickets/categories";
 import { Container, Notice, TicketStatusBadge, formatDayTime } from "@/components/ui";
 import { MessageList } from "@/components/tickets/MessageList";
@@ -18,8 +17,6 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
   const { user } = await requirePlayer(`/tickets/${id}`);
   const t0 = await db.ticket.findUnique({ where: { id }, select: { creatorId: true } });
   if (!t0 || t0.creatorId !== user.id) notFound();
-  // Discord → Web: neue Thread-Nachrichten abholen (gedrosselt, max. 2,5 s)
-  await syncTicketFromDiscord(id);
   const t = await db.ticket.findUniqueOrThrow({
     where: { id },
     include: {
@@ -36,7 +33,7 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
       </Link>
       {neu && (
         <Notice tone="success" title="Ticket ist da!" className="mt-4">
-          Wir melden uns hier{t.discordThreadId || t.sensitivity !== "TEAM_COMPLAINT" ? " und in deinem privaten Discord-Thread" : ""}. Bei jeder Antwort bekommst du eine DM vom NV Lotse (abschaltbar unter Konto).
+          Wir melden uns hier. Bei jeder Antwort bekommst du eine DM vom NV Lotse (abschaltbar unter Konto).
         </Notice>
       )}
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_300px]">
@@ -66,11 +63,6 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
               <span className="text-muted">Betreut von</span>
               <span>{t.claimedBy ? t.claimedBy.globalName || t.claimedBy.username : "noch niemand"}</span>
             </div>
-            {t.discordThreadId && (
-              <p className="flex items-center gap-2 text-muted">
-                <DiscordLogo size={16} aria-hidden /> Läuft auch als privater Thread in Discord.
-              </p>
-            )}
             {t.status === "CLOSED" && t.transcript && (
               <Link href={`/tickets/${t.id}/transkript`} className="nv-btn nv-btn-ghost nv-btn-sm w-full">
                 <FileText size={16} aria-hidden /> Transkript

@@ -22,7 +22,7 @@ const serverSchema = z.object({
   SUPPORT_ROLE_ID: optSnowflake,
   MODERATION_ROLE_ID: optSnowflake,
   LEITUNG_ROLE_ID: optSnowflake,
-  /// Text-Channel, in dem private Ticket-Threads entstehen
+  /// Text-Channel für das Ticket-Panel
   DISCORD_TICKET_CHANNEL_ID: optSnowflake,
   /// Log-Channel für neue Tickets/Anträge und Entscheidungen
   DISCORD_LOG_CHANNEL_ID: optSnowflake,

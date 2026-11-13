@@ -8,14 +8,11 @@
  *  nvs:panel:ticket               Panel-Knopf „Ticket erstellen“ → Kategorie-Auswahl
  *  nvs:panel:request              Panel-Knopf „Antrag stellen“ → Links ins Portal
  *  nvs:cat                        Auswahlmenü Kategorie → Modal
- *  nvs:new:<kategorie>            Modal abgeschickt → Ticket + privater Thread
- *  nvs:t:claim:<ticketId>         Team: Ticket übernehmen
- *  nvs:t:reply:<ticketId>         „Antwort ins Ticket“ → Modal (Fallback ohne Worker)
- *  nvs:t:replysubmit:<ticketId>   Modal abgeschickt → Nachricht im Portal
- *  nvs:t:sync:<ticketId>          Thread-Nachrichten jetzt ins Portal übernehmen
- *  nvs:t:close:<ticketId>         Schließen (fragt nach)
- *  nvs:t:closeok:<ticketId>       Schließen bestätigt
+ *  nvs:new:<kategorie>            Modal abgeschickt → Ticket (weiter geht's im Portal)
  *  nvs:t:rate:<ticketId>:<1-5>    Bewertung aus der DM
+ *
+ * Tickets laufen nur im Portal – es gibt keine Discord-Threads und kein Antworten
+ * über Discord (spart Rechenzeit auf Vercel). Discord: Panel, Formular, DMs.
  */
 import { createPublicKey, verify } from "node:crypto";
 
@@ -59,12 +56,6 @@ export const ids = {
   panelRequest: "nvs:panel:request",
   categorySelect: "nvs:cat",
   newTicket: (category: string) => `nvs:new:${category}`,
-  claim: (ticketId: string) => `nvs:t:claim:${ticketId}`,
-  reply: (ticketId: string) => `nvs:t:reply:${ticketId}`,
-  replySubmit: (ticketId: string) => `nvs:t:replysubmit:${ticketId}`,
-  sync: (ticketId: string) => `nvs:t:sync:${ticketId}`,
-  close: (ticketId: string) => `nvs:t:close:${ticketId}`,
-  closeOk: (ticketId: string) => `nvs:t:closeok:${ticketId}`,
   rate: (ticketId: string, stars: number) => `nvs:t:rate:${ticketId}:${stars}`,
 };
 
@@ -73,7 +64,6 @@ export type SupportAction =
   | { kind: "panelRequest" }
   | { kind: "categorySelect" }
   | { kind: "newTicket"; category: string }
-  | { kind: "claim" | "reply" | "replySubmit" | "sync" | "close" | "closeOk"; ticketId: string }
   | { kind: "rate"; ticketId: string; stars: number };
 
 const ID = "([a-z0-9]{10,40})";
@@ -87,11 +77,6 @@ export function parseCustomId(customId: string): SupportAction | null {
   if (m) return { kind: "newTicket", category: m[1] };
   m = customId.match(new RegExp(`^nvs:t:rate:${ID}:([1-5])$`, "i"));
   if (m) return { kind: "rate", ticketId: m[1], stars: Number(m[2]) };
-  m = customId.match(new RegExp(`^nvs:t:(claim|reply|replysubmit|sync|close|closeok):${ID}$`, "i"));
-  if (m) {
-    const map = { claim: "claim", reply: "reply", replysubmit: "replySubmit", sync: "sync", close: "close", closeok: "closeOk" } as const;
-    return { kind: map[m[1].toLowerCase() as keyof typeof map], ticketId: m[2] };
-  }
   return null;
 }
 
@@ -108,8 +93,8 @@ export const TICKET_COMMAND = {
     {
       type: 1,
       name: "claim",
-      description: "Team: Ticket übernehmen (im Ticket-Thread oder mit ID)",
-      options: [{ type: 3, name: "id", description: "Ticket-ID, z. B. NVS-2026-0012 oder 12", required: false, max_length: 40 }],
+      description: "Team: Ticket übernehmen",
+      options: [{ type: 3, name: "id", description: "Ticket-ID, z. B. NVS-2026-0012 oder 12", required: true, max_length: 40 }],
     },
   ],
 } as const;

@@ -5,11 +5,11 @@ Stand: 13.11.2026 · Status: **umgesetzt**
 ## Entscheidungen (vom 13.11.2026)
 
 1. **Interactions-Endpoint:** Option A – das Support-Center ist der Router und reicht alles, was nicht `nvs:` bzw. Support-Befehl ist, unverändert ans Bewerbungsportal weiter. Patch fürs Portal: `docs/bewerbungsportal-interactions.patch`.
-2. **Hosting:** **ohne Worker.** Discord → Web per REST-Abgleich (beim Öffnen eines Tickets, per Knopf im Thread, bei den Hintergrundarbeiten). Hintergrundarbeiten über Vercel Cron und gedrosselt bei Seitenaufrufen.
+2. **Hosting:** **ohne Worker.** Hintergrundarbeiten über Vercel Cron und gedrosselt bei Seitenaufrufen.
 3. **Vier-Augen-Prinzip:** immer zwei Personen bei Entbannung und Einspruch (je Antragsart schaltbar). Wer die Strafe ausgesprochen hat, zählt nie als zweite Person.
 4. **Login:** immer mit Discord – auch für Gebannte. Wer vom Discord gebannt ist, sieht nur den Entbannungsantrag und den Stand seiner Anträge.
 
-Abweichungen vom Entwurf unten: kein Worker (Abschnitt 3 entsprechend ersetzt durch REST-Abgleich, siehe README → Architektur).
+Abweichungen vom Entwurf unten: kein Worker; **keine Discord-Threads** (nachträglich entfernt – Tickets laufen nur im Portal, Discord nur für Panel, Formular, DMs und Bewertung). Abschnitte zu Threads/Abgleich sind damit überholt, siehe README → Architektur.
 
 ---
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DiscordLogo, Kanban, ListBullets, LockSimple } from "@phosphor-icons/react/ssr";
+import { Kanban, ListBullets, LockSimple } from "@phosphor-icons/react/ssr";
 import { requireTeam } from "@/lib/auth/session";
 import { listTeamTickets, parseTicketFilters } from "@/lib/team/queries";
 import { viewerOf } from "@/lib/tickets/service";
@@ -8,6 +8,7 @@ import { TICKET_CATEGORIES, categoryLabel } from "@/lib/tickets/categories";
 import { PRIORITIES, PRIORITY_LABEL, TICKET_STATUSES, TICKET_STATUS_LABEL_TEAM } from "@/lib/tickets/status";
 import { EmptyState, PriorityBadge, TicketStatusBadge, formatRelative } from "@/components/ui";
 import { TicketKanban } from "@/components/team/TicketKanban";
+import { FormSelect } from "@/components/FormSelect";
 
 export const metadata: Metadata = { title: "Tickets" };
 
@@ -54,49 +55,59 @@ export default async function TeamTicketsPage({ searchParams }: { searchParams: 
           <input name="q" defaultValue={filters.q} className="nv-input mt-1" placeholder="ID, Betreff, Spieler, Text …" />
         </label>
         {!kanban && (
-          <label>
-            <span className="nv-field-label">Status</span>
-            <select name="status" defaultValue={filters.status} className="nv-input mt-1">
-              <option value="aktiv">Aktiv (nicht geschlossen)</option>
-              <option value="alle">Alle</option>
-              {TICKET_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {TICKET_STATUS_LABEL_TEAM[s]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div>
+            <label htmlFor="tickets-status" className="nv-field-label">
+              Status
+            </label>
+            <FormSelect
+              id="tickets-status"
+              name="status"
+              defaultValue={filters.status}
+              className="mt-1"
+              options={[{ value: "aktiv", label: "Aktiv (nicht geschlossen)" }, { value: "alle", label: "Alle" }, ...TICKET_STATUSES.map((s) => ({ value: s, label: TICKET_STATUS_LABEL_TEAM[s] }))]}
+            />
+          </div>
         )}
-        <label>
-          <span className="nv-field-label">Kategorie</span>
-          <select name="kategorie" defaultValue={filters.category} className="nv-input mt-1">
-            <option value="">Alle</option>
-            {TICKET_CATEGORIES.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="nv-field-label">Priorität</span>
-          <select name="prio" defaultValue={filters.priority} className="nv-input mt-1">
-            <option value="">Alle</option>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="nv-field-label">Zugewiesen</span>
-          <select name="zugewiesen" defaultValue={filters.assigned} className="nv-input mt-1">
-            <option value="">Alle</option>
-            <option value="me">Mir</option>
-            <option value="free">Niemandem</option>
-          </select>
-        </label>
+        <div>
+          <label htmlFor="tickets-kategorie" className="nv-field-label">
+            Kategorie
+          </label>
+          <FormSelect
+            id="tickets-kategorie"
+            name="kategorie"
+            defaultValue={filters.category}
+            className="mt-1"
+            options={[{ value: "", label: "Alle" }, ...TICKET_CATEGORIES.map((c) => ({ value: c.key, label: c.label }))]}
+          />
+        </div>
+        <div>
+          <label htmlFor="tickets-prio" className="nv-field-label">
+            Priorität
+          </label>
+          <FormSelect
+            id="tickets-prio"
+            name="prio"
+            defaultValue={filters.priority}
+            className="mt-1"
+            options={[{ value: "", label: "Alle" }, ...PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))]}
+          />
+        </div>
+        <div>
+          <label htmlFor="tickets-zugewiesen" className="nv-field-label">
+            Zugewiesen
+          </label>
+          <FormSelect
+            id="tickets-zugewiesen"
+            name="zugewiesen"
+            defaultValue={filters.assigned}
+            className="mt-1"
+            options={[
+              { value: "", label: "Alle" },
+              { value: "me", label: "Mir" },
+              { value: "free", label: "Niemandem" },
+            ]}
+          />
+        </div>
         <div className="flex gap-2 lg:col-span-6">
           {filters.tag && <input type="hidden" name="tag" value={filters.tag} />}
           <button type="submit" className="nv-btn nv-btn-primary nv-btn-sm">
@@ -123,7 +134,6 @@ export default async function TeamTicketsPage({ searchParams }: { searchParams: 
               category: t.category,
               player: name(t.creator)!,
               claimedBy: name(t.claimedBy),
-              discord: !!t.discordThreadId,
               sensitive: t.sensitivity !== "NORMAL",
               tags: t.tags,
             }))}
@@ -150,7 +160,6 @@ export default async function TeamTicketsPage({ searchParams }: { searchParams: 
                       </Link>
                       <div className="text-xs text-muted flex flex-wrap items-center gap-1.5 mt-0.5">
                         <span className="font-mono">{t.publicId}</span> · {categoryLabel(t.category)}
-                        {t.discordThreadId && <DiscordLogo size={12} aria-label="Discord-Thread" />}
                         {t.sensitivity !== "NORMAL" && (
                           <span className="nv-pill nv-tone-danger !text-[0.62rem] !py-0">
                             <LockSimple size={10} aria-hidden /> vertraulich
