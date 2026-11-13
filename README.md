@@ -105,7 +105,7 @@ Danach im Bewerbungsportal (Vercel) `DISCORD_INTERACTIONS_ROUTER_URL=https://sup
 
 ## Schnellstart (lokal)
 
-Voraussetzung: Node.js ≥ 22.12.
+Voraussetzung: Node.js 22 (≥ 22.12).
 
 ```bash
 npm install
@@ -156,7 +156,7 @@ git push -u origin main
 
 1. *Add New → Project* → GitHub-Repo `nordverkehr-support` importieren. Framework „Next.js“ wird erkannt.
 2. Build-Einstellungen kommen aus [`vercel.json`](vercel.json): `npm ci`, `npm run build` (= `prisma generate && next build`), Region `fra1`.
-3. **Node.js-Version:** *Settings → Build and Deployment → Node.js Version* auf **22.x** (oder höher) stellen (`engines` in `package.json`: `>=22.12.0`).
+3. **Node.js-Version:** *Settings → Build and Deployment → Node.js Version* auf **22.x** (oder höher) stellen (`engines` in `package.json`: `22.x`).
 4. Alle [Umgebungsvariablen](#umgebungsvariablen) unter *Settings → Environment Variables* eintragen (Production; `DEV_LOGIN` **nicht**).
 5. Deployen. Jeder Push auf `main` deployt automatisch, Pull Requests bekommen Preview-Deployments.
 6. **Cron:** `vercel.json` ruft `/api/cron/housekeeping` zweimal täglich auf (Vercel schickt `Authorization: Bearer $CRON_SECRET`). Auf dem **Hobby-Plan** laufen Cron-Jobs höchstens einmal täglich pro Eintrag – reicht, weil die Hintergrundarbeiten zusätzlich bei Seitenaufrufen laufen. Für pünktlichere Erinnerungen:
