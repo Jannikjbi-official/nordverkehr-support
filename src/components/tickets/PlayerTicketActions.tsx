@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { startTransition as startBg, useState, useTransition } from "react";
 import { PaperPlaneRight, Star } from "@phosphor-icons/react/ssr";
 import type { TicketStatus } from "@prisma/client";
 import { closeTicketAction, rateTicketAction, replyTicketAction } from "@/app/actions/tickets";
 import { AttachmentInput, type AttachmentValue } from "@/components/AttachmentInput";
 import { confirmDialog } from "@/components/ConfirmDialog";
+import { useLiveThread } from "@/components/live/Live";
 
 export function StarRating({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled?: boolean }) {
   return (
@@ -38,6 +39,25 @@ export function PlayerTicketActions({ ticketId, status, rating, ratingComment }:
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
+  const live = useLiveThread();
+
+  /** Sofort im Verlauf anzeigen, im Hintergrund speichern */
+  const sendReply = async () => {
+    const text = body;
+    const attachments = att;
+    setError(null);
+    setBody("");
+    setAtt({ attachmentIds: [], links: [] });
+    const run = () => replyTicketAction({ ticketId, body: text, ...attachments });
+    const r = live ? await live.send({ kind: "PLAYER", body: text, attachmentCount: attachments.attachmentIds.length + attachments.links.length }, run) : await run();
+    if (!r.ok) {
+      setBody(text);
+      setAtt(attachments);
+      setError(r.error ?? "Senden fehlgeschlagen.");
+      return;
+    }
+    startBg(() => router.refresh());
+  };
 
   if (status === "CLOSED") {
     return (
@@ -85,20 +105,27 @@ export function PlayerTicketActions({ ticketId, status, rating, ratingComment }:
         onSubmit={(e) => {
           e.preventDefault();
           if (body.trim().length < 2) return setError("Die Nachricht ist leer.");
-          start(async () => {
-            setError(null);
-            const r = await replyTicketAction({ ticketId, body, ...att });
-            if (!r.ok) return setError(r.error);
-            setBody("");
-            setAtt({ attachmentIds: [], links: [] });
-            router.refresh();
-          });
+          void sendReply();
         }}
       >
         <label htmlFor="reply-body" className="sr-only">
           Nachricht
         </label>
-        <textarea id="reply-body" className="nv-input min-h-28" maxLength={4000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Deine Nachricht ans Team …" />
+        <textarea
+          id="reply-body"
+          className="nv-input min-h-28"
+          maxLength={4000}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            // Strg/Cmd + Enter sendet
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          placeholder="Deine Nachricht ans Team … (Strg + Enter zum Senden)"
+        />
         <AttachmentInput value={att} onChange={setAtt} compact />
         {error && (
           <p className="nv-error" role="alert">
@@ -106,7 +133,7 @@ export function PlayerTicketActions({ ticketId, status, rating, ratingComment }:
           </p>
         )}
         <div className="flex flex-wrap gap-2 justify-between">
-          <button type="submit" className="nv-btn nv-btn-primary nv-btn-sm" disabled={pending}>
+          <button type="submit" className="nv-btn nv-btn-primary nv-btn-sm" disabled={pending || body.trim().length < 2}>
             <PaperPlaneRight size={16} aria-hidden /> Senden
           </button>
           <button

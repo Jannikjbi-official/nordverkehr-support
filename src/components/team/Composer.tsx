@@ -5,6 +5,7 @@ import { ChatsCircle, LockSimple, PaperPlaneRight, Sparkle } from "@phosphor-ico
 import { renderTemplate, type TemplateVars } from "@/lib/messages/placeholders";
 import { AttachmentInput, type AttachmentValue } from "@/components/AttachmentInput";
 import { Select } from "@/components/Select";
+import { useLiveThread } from "@/components/live/Live";
 
 export interface ComposerTemplate {
   id: string;
@@ -56,6 +57,7 @@ export function Composer({
   const [aiPending, startAi] = useTransition();
   const uid = useId();
   const missing = renderTemplate(body, vars).missing;
+  const live = useLiveThread();
 
   const insert = (t: ComposerTemplate) => {
     const { text } = renderTemplate(t.body, vars);
@@ -144,16 +146,25 @@ export function Composer({
           type="button"
           className="nv-btn nv-btn-primary nv-btn-sm ml-auto"
           disabled={pending || body.trim().length < 2}
-          onClick={() =>
-            start(async () => {
-              setError(null);
-              const r = await onSend({ body, internal, extra, attachments: att });
-              if (!r.ok) return setError(r.error ?? "Fehler");
-              setBody("");
-              setNote(null);
-              setAtt({ attachmentIds: [], links: [] });
-            })
-          }
+          onClick={async () => {
+            // Sofort im Verlauf anzeigen, Feld leeren – bei Fehler kommt der Text zurück
+            const text = body;
+            const attachments = att;
+            const asInternal = internal;
+            setError(null);
+            setBody("");
+            setNote(null);
+            setAtt({ attachmentIds: [], links: [] });
+            const run = () => onSend({ body: text, internal: asInternal, extra, attachments });
+            const r = live
+              ? await live.send({ kind: asInternal ? "INTERNAL" : "TEAM", body: text, attachmentCount: asInternal ? 0 : attachments.attachmentIds.length + attachments.links.length }, run)
+              : await new Promise<{ ok: boolean; error?: string }>((resolve) => start(async () => resolve(await run())));
+            if (!r.ok) {
+              setBody(text);
+              setAtt(attachments);
+              setError(r.error ?? "Fehler");
+            }
+          }}
         >
           <PaperPlaneRight size={16} aria-hidden /> {internal ? "Notiz speichern" : sendLabel}
         </button>

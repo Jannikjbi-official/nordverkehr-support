@@ -476,6 +476,12 @@
   50% { opacity: 0; }
 }
 
+@keyframes nvPulseRing {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--nv-red) 45%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 @layer utilities {
   .nv-anim {
     animation: nvFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -483,6 +489,7 @@
   }
   .nv-fade { animation: nvFade 0.4s ease both; }
   .nv-pulse-dot { animation: nvPulseDot 2s ease infinite; }
+  .nv-pulse-ring { animation: nvPulseRing 2.2s ease-out infinite; }
   .nv-caret::after {
     content: "▍";
     margin-left: 1px;
@@ -507,7 +514,7 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .nv-anim, .nv-fade { animation: none; }
-  .nv-pulse-dot, .nv-skeleton { animation: none; }
+  .nv-pulse-dot, .nv-pulse-ring, .nv-skeleton { animation: none; }
   .nv-card-hover:hover, .nv-btn:hover { transform: none !important; }
 }
 

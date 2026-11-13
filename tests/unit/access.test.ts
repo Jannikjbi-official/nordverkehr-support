@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { levelFromRoles, resolveAccess, type AccessDeps, type AccessSubject } from "@/lib/auth/access";
+import { canServeStale, levelFromRoles, needsRefresh, resolveAccess, type AccessDeps, type AccessSubject } from "@/lib/auth/access";
 import { bannedMayAccess, classifyRoute, decideAccess } from "@/lib/auth/routes";
 
 const roles = { supportRoleId: "1", moderationRoleId: "2", leitungRoleId: "3" };
@@ -109,5 +109,25 @@ describe("Zugriff für gebannte Spieler", () => {
     expect(classifyRoute("//Team//tickets/")).toBe("team-page");
     expect(decideAccess("team-page", "/team", { loggedIn: true, isTeam: false, banned: false })).toEqual({ action: "redirect", to: "/kein-zugriff" });
     expect(decideAccess("team-api", "/api/team/export", { loggedIn: true, isTeam: false, banned: false })).toEqual({ action: "json", status: 403, error: "Kein Zugriff." });
+  });
+});
+
+describe("Rollen-Cache: im Hintergrund auffrischen", () => {
+  const now = new Date("2026-11-13T12:00:00Z");
+  const ago = (s: number) => new Date(now.getTime() - s * 1000);
+  const cfg = { ttlMs: 60_000, banTtlMs: 300_000 };
+
+  it("frisch → kein Abruf nötig", () => {
+    expect(needsRefresh({ roleCheckedAt: ago(30), banCheckedAt: null, inGuild: true }, cfg, now)).toBe(false);
+  });
+  it("Rollen älter als TTL → auffrischen; bis 10 Min. darf der alte Stand sofort geliefert werden", () => {
+    const s = { roleCheckedAt: ago(120), banCheckedAt: null, inGuild: true };
+    expect(needsRefresh(s, cfg, now)).toBe(true);
+    expect(canServeStale(s, now, 600_000)).toBe(true);
+    expect(canServeStale({ ...s, roleCheckedAt: ago(900) }, now, 600_000)).toBe(false);
+  });
+  it("nicht auf dem Server: Bann-Stand muss auch noch jung genug sein", () => {
+    expect(canServeStale({ roleCheckedAt: ago(120), banCheckedAt: ago(120), inGuild: false }, now, 600_000)).toBe(true);
+    expect(canServeStale({ roleCheckedAt: ago(120), banCheckedAt: null, inGuild: false }, now, 600_000)).toBe(false);
   });
 });

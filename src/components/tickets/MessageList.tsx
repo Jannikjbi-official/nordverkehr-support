@@ -1,4 +1,4 @@
-import { DiscordLogo, LinkSimple, LockSimple } from "@phosphor-icons/react/ssr";
+import { Check, CircleNotch, DiscordLogo, LinkSimple, LockSimple } from "@phosphor-icons/react/ssr";
 import type { DeliveryStatus, MessageKind, Source } from "@prisma/client";
 import { DiscordMarkdown } from "@/components/DiscordMarkdown";
 import { DeliveryBadge, cn, formatDayTime } from "@/components/ui";
@@ -12,6 +12,9 @@ export interface ListMessage {
   createdAt: Date;
   deliveryStatus?: DeliveryStatus;
   attachments: { id: string; kind: "IMAGE" | "LINK"; url: string | null; provider: string | null; fileName: string | null }[];
+  /** Nur im Browser: gerade gesendet, Server hat sie noch nicht geliefert */
+  localState?: "sending" | "sent";
+  localAttachments?: number;
 }
 
 /** Verlauf eines Tickets/Antrags. `perspective` bestimmt, welche Seite „eigene“ Nachrichten sind. */
@@ -30,10 +33,12 @@ export function MessageList({ messages, perspective }: { messages: ListMessage[]
         }
         const own = perspective === "player" ? m.kind === "PLAYER" : m.kind === "TEAM" || m.kind === "INTERNAL";
         return (
-          <li key={m.id} className={cn("flex", own ? "justify-end" : "justify-start")}>
+          <li key={m.id} className={cn("flex", own ? "justify-end" : "justify-start", m.localState && "nv-fade")}>
             <article
+              aria-busy={m.localState === "sending" || undefined}
               className={cn(
-                "max-w-[min(42rem,92%)] rounded-2xl border px-4 py-3",
+                "max-w-[min(42rem,92%)] rounded-2xl border px-4 py-3 transition-opacity",
+                m.localState === "sending" && "opacity-70",
                 m.kind === "INTERNAL" ? "border-dashed border-[color:var(--tone-warn)] bg-[color:var(--tone-warn-bg)]" : own ? "border-red-line bg-red-soft" : "border-line bg-card",
               )}
             >
@@ -50,12 +55,20 @@ export function MessageList({ messages, perspective }: { messages: ListMessage[]
                     <DiscordLogo size={12} aria-hidden /> Discord
                   </span>
                 )}
-                <time dateTime={m.createdAt.toISOString()}>{formatDayTime(m.createdAt)}</time>
+                {m.localState ? (
+                  <span className="inline-flex items-center gap-1" role="status">
+                    {m.localState === "sending" ? <CircleNotch size={12} className="animate-spin" aria-hidden /> : <Check size={12} aria-hidden />}
+                    {m.localState === "sending" ? "wird gesendet …" : "gesendet"}
+                  </span>
+                ) : (
+                  <time dateTime={new Date(m.createdAt).toISOString()}>{formatDayTime(m.createdAt)}</time>
+                )}
                 {perspective === "team" && m.kind === "TEAM" && m.deliveryStatus && m.deliveryStatus !== "NOT_SENT" && <DeliveryBadge status={m.deliveryStatus} />}
               </header>
               <div className="text-sm text-fg-2 break-words">
                 <DiscordMarkdown text={m.body} />
               </div>
+              {!!m.localAttachments && <p className="mt-2 text-xs text-muted">+ {m.localAttachments} Anhang/Anhänge</p>}
               {m.attachments.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {m.attachments.map((a) =>

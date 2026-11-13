@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Kanban, ListBullets, LockSimple } from "@phosphor-icons/react/ssr";
 import { requireTeam } from "@/lib/auth/session";
+import { LiveRefresh } from "@/components/live/Live";
+import { liveScopeQuery, liveVersion } from "@/lib/live";
+import { viewerOf as liveViewer } from "@/lib/tickets/service";
 import { listTeamTickets, parseTicketFilters } from "@/lib/team/queries";
 import { viewerOf } from "@/lib/tickets/service";
 import { TICKET_CATEGORIES, categoryLabel } from "@/lib/tickets/categories";
@@ -14,6 +17,8 @@ export const metadata: Metadata = { title: "Tickets" };
 
 export default async function TeamTicketsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, access } = await requireTeam();
+  // Neue/geänderte Vorgänge erscheinen ohne Neuladen
+  const liveVer = (await liveVersion({ type: "team-tickets" }, liveViewer(user, access.teamLevel))) ?? "";
   const sp = await searchParams;
   const kanban = sp.ansicht === "kanban";
   const filters = parseTicketFilters(sp);
@@ -31,6 +36,7 @@ export default async function TeamTicketsPage({ searchParams }: { searchParams: 
 
   return (
     <div>
+      <LiveRefresh query={liveScopeQuery({ type: "team-tickets" })} version={liveVer} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="nv-label">Team // Tickets</p>

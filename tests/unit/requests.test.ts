@@ -97,3 +97,12 @@ describe("Datenbank-Verbindung (Postgres/Neon)", () => {
     expect(resolveDirectUrl({ DATABASE_URL: pooled })).toBe(`${pooled}&connect_timeout=15`);
   });
 });
+
+describe("Datenbank-Region", () => {
+  it("liest die Neon-Region aus dem Hostnamen", async () => {
+    const { databaseRegion } = await import("@/lib/db-health");
+    expect(databaseRegion("postgresql://u:p@ep-cool-1234-pooler.eu-central-1.aws.neon.tech/neondb")).toBe("eu-central-1");
+    expect(databaseRegion("postgresql://u:p@ep-x.us-east-1.aws.neon.tech/neondb")).toBe("us-east-1");
+    expect(databaseRegion("postgresql://u:p@127.0.0.1:5432/x")).toBe("lokal");
+  });
+});

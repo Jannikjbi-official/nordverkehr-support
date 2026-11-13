@@ -45,16 +45,19 @@ export function RequestForm({ typeSlug, fields, requireHonesty, needsConsent, di
 
   return (
     <form
-      className="max-w-3xl space-y-6"
+      className="nv-card p-5 sm:p-7 space-y-6 min-w-0"
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
         submit();
       }}
     >
-      <div className="nv-card p-4 text-sm">
-        <span className="text-muted">Deine Discord-ID (automatisch):</span> <span className="font-mono">{discordId}</span>
-      </div>
+      <p className="text-xs text-muted flex flex-wrap items-center gap-x-2 gap-y-1 pb-5 border-b border-line">
+        <span className="nv-pill nv-tone-muted !normal-case">Felder mit * sind Pflicht</span>
+        <span>
+          Deine Discord-ID wird automatisch angehängt: <span className="font-mono text-fg-2">{discordId}</span>
+        </span>
+      </p>
       {fields.map((f) => (
         <FieldInput key={f.key} f={f} value={answers[f.key]} error={errors[f.key]} onChange={(v) => setAnswers((a) => ({ ...a, [f.key]: v }))} />
       ))}
@@ -96,9 +99,12 @@ export function RequestForm({ typeSlug, fields, requireHonesty, needsConsent, di
           {formError}
         </p>
       )}
-      <button type="submit" className="nv-btn nv-btn-primary" disabled={pending}>
-        {pending ? "Wird eingereicht …" : "Antrag einreichen"} <ArrowRight size={16} aria-hidden />
-      </button>
+      <div className="pt-5 border-t border-line flex flex-wrap items-center gap-4">
+        <button type="submit" className="nv-btn nv-btn-primary" disabled={pending} aria-busy={pending || undefined}>
+          {pending ? "Wird eingereicht …" : "Antrag einreichen"} <ArrowRight size={16} aria-hidden />
+        </button>
+        <p className="text-xs text-muted flex-1 min-w-[12rem]">Danach kannst du die Angaben nicht mehr ändern – aber jederzeit etwas nachreichen.</p>
+      </div>
     </form>
   );
 }

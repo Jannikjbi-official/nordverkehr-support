@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { Prisma, RequestStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTeam } from "@/lib/auth/session";
+import { LiveRefresh } from "@/components/live/Live";
+import { liveScopeQuery, liveVersion } from "@/lib/live";
+import { viewerOf as liveViewer } from "@/lib/tickets/service";
 import { requestTeamWhere, teamCanSeeRequest } from "@/lib/perms";
 import { viewerOf } from "@/lib/tickets/service";
 import { REQUEST_STATUS_LABEL_TEAM } from "@/lib/requests/model";
@@ -15,6 +18,8 @@ const STATUSES: RequestStatus[] = ["SUBMITTED", "IN_REVIEW", "QUESTION", "DECIDE
 
 export default async function TeamRequestsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { user, access } = await requireTeam();
+  // Neue/geänderte Vorgänge erscheinen ohne Neuladen
+  const liveVer = (await liveVersion({ type: "team-requests" }, liveViewer(user, access.teamLevel))) ?? "";
   const viewer = viewerOf(user, access.teamLevel);
   const sp = await searchParams;
   const allTypes = await db.requestType.findMany({ orderBy: { order: "asc" } });
@@ -37,6 +42,7 @@ export default async function TeamRequestsPage({ searchParams }: { searchParams:
 
   return (
     <div>
+      <LiveRefresh query={liveScopeQuery({ type: "team-requests" })} version={liveVer} />
       <p className="nv-label">Team // Anträge</p>
       <h1 className="nv-headline text-4xl mt-3">
         Anträge <em>({requests.length})</em>

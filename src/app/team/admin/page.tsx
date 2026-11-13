@@ -4,6 +4,7 @@ import { requireLead } from "@/lib/auth/session";
 import { getSettings, SETTING_LABELS } from "@/lib/settings";
 import { isAiConfigured } from "@/lib/ai/config";
 import { diagnose, interactionsUrl } from "@/lib/discord/setup";
+import { databaseCheck } from "@/lib/db-health";
 import { SettingsForm } from "@/components/team/SettingsForm";
 import { DiscordTools } from "@/components/team/DiscordTools";
 
@@ -11,7 +12,12 @@ export const metadata: Metadata = { title: "Einstellungen & Discord" };
 
 export default async function AdminPage() {
   await requireLead();
-  const [settings, checks] = await Promise.all([getSettings(), diagnose().catch((e) => [{ label: "Discord", ok: false, detail: (e as Error).message }])]);
+  const [settings, discordChecks, dbCheck] = await Promise.all([
+    getSettings(),
+    diagnose().catch((e) => [{ label: "Discord", ok: false, detail: (e as Error).message }]),
+    databaseCheck(),
+  ]);
+  const checks = [dbCheck, ...discordChecks];
   return (
     <div className="space-y-10">
       <div>
