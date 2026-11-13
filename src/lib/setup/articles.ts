@@ -13,7 +13,7 @@ export interface SeedArticle {
  * die das Team nicht bearbeitet hat, bekommen dann beim nächsten Start den
  * neuen Text (bearbeitete bleiben unangetastet).
  */
-export const SEED_CONTENT_VERSION = 3;
+export const SEED_CONTENT_VERSION = 4;
 
 export const SEED_ARTICLES: SeedArticle[] = [
   {
@@ -45,6 +45,8 @@ export const SEED_ARTICLES: SeedArticle[] = [
 3. Bewirb dich für die Whitelist, sobald die Bewerbung im Discord angekündigt ist.
 4. Richte TeamSpeak 3 und SaltyChat ein. Die TeamSpeak-Adresse und den Plugin-Link findest du im Discord.
 5. Wenn du angenommen bist: Verbinde dich mit dem Server.
+
+![Dein Weg auf den Server in fünf Schritten](/hilfe/erste-schritte-weg.webp)
 
 ## Wo du Hilfe bekommst
 
@@ -86,6 +88,8 @@ Wer das in umgekehrter Reihenfolge macht, landet meist direkt im SaltyChat-Fehle
 
 \`connect connect.nordverkehr.xyz\`
 
+![F8-Konsole mit dem Befehl connect connect.nordverkehr.xyz](/hilfe/verbinden-konsole.webp)
+
 ## Weg 2: Direktlink
 
 Öffne im Browser den Link \`fivem://connect/connect.nordverkehr.xyz\` oder geh auf [nordverkehr.xyz/connect](https://nordverkehr.xyz/connect). Dein Browser fragt, ob er FiveM öffnen darf – erlauben, fertig.
@@ -115,6 +119,8 @@ Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf. Schreib dazu, welc
       "fraktionen-und-jobs",
     ],
     body: `Kurz gesagt: Ein **Ticket** ist für Fragen und Probleme, bei denen dir jemand helfen soll. Ein **Antrag** ist für Entscheidungen, die das Team treffen muss. Wer den falschen Weg nimmt, wartet unnötig.
+
+![Ticket für Hilfe bei Problemen, Antrag für formelle Entscheidungen](/hilfe/ticket-oder-antrag.webp)
 
 ## Tickets
 
@@ -171,6 +177,8 @@ Wenn du dir unsicher bist, mach ein [Ticket unter Sonstiges](/tickets/neu) auf. 
 4. Füll die Bewerbung im [Bewerbungsportal](https://bewerbung.nordverkehr.xyz) aus.
 5. Warte auf die Rückmeldung.
 
+![Ablauf der Whitelist-Bewerbung in fünf Schritten](/hilfe/whitelist-ablauf.webp)
+
 ## Das Regelwerk ist kein Beiwerk
 
 Wir sagen es lieber einmal zu oft:
@@ -220,6 +228,8 @@ Der Klassiker und oft schon die Lösung.
 
 Den Ordner **game** behältst du, sonst lädt FiveM alles neu herunter. Ausführlich: [FiveM-Cache löschen](/hilfe/technik-verbindung/fivem-cache-loeschen).
 
+![Ordner im FiveM-Cache](/hilfe/cache-ordner.webp)
+
 ## 2. GTA-5-Dateien überprüfen
 
 Beschädigte Spieldateien sorgen für Abstürze. Lass die Dateien im Launcher überprüfen, über den du GTA 5 gekauft hast (Steam, Epic oder Rockstar Launcher). Die Funktion heißt je nach Launcher "Dateien überprüfen" oder "Integrität überprüfen".
@@ -255,6 +265,8 @@ Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf. Schreib dazu, was 
       "mit-dem-server-verbinden",
     ],
     body: `Auf Nordverkehr wird gesprochen, nicht getippt. Ingame-Voice läuft über TeamSpeak 3 mit dem Plugin SaltyChat. Das ist Pflicht, ebenso ein funktionierendes Mikrofon.
+
+![TeamSpeak 3 und SaltyChat in fünf Schritten einrichten](/hilfe/teamspeak-einrichten.webp)
 
 ## 1. TeamSpeak 3 installieren
 
@@ -325,6 +337,8 @@ Wenn TeamSpeak oder SaltyChat sich weigern, schau in die Artikel zu SaltyChat un
 
 TeamSpeak starten → auf unseren TS verbinden → Plugin prüfen → FiveM starten → Server beitreten.
 
+![Richtige Reihenfolge und Checkliste bei Not connected](/hilfe/saltychat-reihenfolge.webp)
+
 ## Hilft alles nichts?
 
 Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf. Schreib dazu, welche Meldung im Spiel erscheint und welche SaltyChat-Version du in den Addons siehst.`,
@@ -341,6 +355,8 @@ Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf. Schreib dazu, welc
       "saltychat-verbindet-nicht",
     ],
     body: `Ein funktionierendes Mikrofon ist auf Nordverkehr Pflicht. Wenn dich niemand hört, liegt es meist an Windows, an TeamSpeak oder an einer belegten Taste.
+
+![Mikrofon von Windows bis ins Spiel prüfen](/hilfe/mikrofon-pruefen.webp)
 
 ## 1. Windows prüfen
 
@@ -397,6 +413,8 @@ Dein Charakter weiß nur, was er im Spiel selbst erlebt, gesehen oder gehört ha
 - Du erkennst jemanden an der Stimme seines letzten Charakters und behandelst den neuen Charakter so, als würde deiner ihn kennen.
 - Du liest in einem Kanal, wer bei der Polizei arbeitet, und dein Charakter weiß es plötzlich.
 
+![Was du weißt ist nicht, was dein Charakter weiß](/hilfe/metagaming.webp)
+
 ## Warum das so ernst genommen wird
 
 Roleplay lebt davon, dass Informationen im Spiel weitergegeben werden: durch Gespräche, Beobachtungen, Fehler. Wer Abkürzungen über Discord oder Streams nimmt, entwertet die Arbeit aller anderen. Das widerspricht auch Grundsatz 1.4: RP vor Gewinn.
@@ -424,6 +442,8 @@ Wenn du dir bei einer konkreten Situation unsicher bist, mach ein [Ticket unter 
       "einspruch-gegen-verwarnung-oder-strafe",
     ],
     body: `Neben Metagaming sind das die drei Begriffe, über die im RP am meisten diskutiert wird. Sie stehen im [Regelwerk](https://nordverkehr.xyz/regeln) unter 2.4 bis 2.6.
+
+![Power-RP, Fail-RP und Combat Logging im Überblick](/hilfe/power-fail-combat.webp)
 
 ## Power-RP (2.4)
 
@@ -473,6 +493,8 @@ Fragen zu einer konkreten Situation? [Ticket unter "Frage zum Regelwerk"](/ticke
       "power-rp-fail-rp-und-combat-logging",
     ],
     body: `Ob Behörde, Unternehmen oder Gruppe: Fraktionen und Jobs sind ein großer Teil des Lebens in der Stadt. Hier steht, wie du grundsätzlich reinkommst und wann du einen Antrag brauchst.
+
+![Fraktion: reinkommen im RP, wechseln und gründen per Antrag](/hilfe/fraktionen.webp)
 
 ## Reinkommen läuft im RP
 
@@ -536,6 +558,8 @@ Der Login läuft über Discord. Wenn du auch vom Discord-Server gebannt bist, ka
 
 Die Ehrlichkeitserklärung ist ernst gemeint: **Falsche Angaben führen zur Ablehnung.** Wer etwas weglässt oder schönredet, schadet sich selbst.
 
+![Das Formular für den Entbannungsantrag im Portal](/hilfe/portal-entbannung.webp)
+
 ## Wie geprüft wird
 
 - Entbannungsanträge laufen nach dem **Vier-Augen-Prinzip**: Zwei Teammitglieder aus Moderation oder Leitung entscheiden.
@@ -577,6 +601,8 @@ Wenn du technische Probleme mit dem Formular hast, schreib ein [Ticket](/tickets
 3. Gib an, um welche Verwarnung oder Strafe es geht.
 4. Erklär sachlich, warum du sie für falsch hältst.
 5. Bestätige die Ehrlichkeitserklärung und schick ab.
+
+![Das Formular für den Einspruch im Portal](/hilfe/portal-einspruch.webp)
 
 ## Was in einen Einspruch gehört
 
@@ -625,6 +651,8 @@ Eingeloggt wird ausschließlich über Discord. Es gibt kein separates Passwort, 
 3. Lade die Datei herunter.
 
 Damit bekommst du eine Kopie der Daten, die das Support-Center zu deinem Konto gespeichert hat, zum Beispiel deine Tickets und Anträge.
+
+![Die Seite Konto & Daten im Portal](/hilfe/portal-konto.webp)
 
 ## Konto löschen
 
