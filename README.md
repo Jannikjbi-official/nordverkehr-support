@@ -207,6 +207,7 @@ git push -u origin main
 | `NEXT_PUBLIC_DISCORD_INVITE` | Discord-Einladung | dauerhafter Invite-Link | optional (Standard) |
 | `NEXT_PUBLIC_RULES_URL` | Regelwerk | Standard `<Hauptseite>/regeln` | optional |
 | `DATABASE_URL` | MongoDB (eigene DB `nordverkehr_support`) | Atlas → Connect → Drivers | ✅ |
+| `DATABASE_NAME` | Erzwingt den Datenbanknamen (`nordverkehr_support`) – nötig, wenn ihr die Atlas-Verbindung des Bewerbungsportals (`DATABASE_URL_MONGODB_URI` der Vercel-Integration) mitbenutzt | `nordverkehr_support` | empfohlen |
 | `AUTH_SECRET` | Verschlüsselung der Sitzungen | `npx auth secret` | ✅ |
 | `AUTH_DISCORD_ID` | Discord-Login | Developer Portal → OAuth2 → Client ID | ✅ |
 | `AUTH_DISCORD_SECRET` | Discord-Login | Developer Portal → OAuth2 → Client Secret | ✅ |

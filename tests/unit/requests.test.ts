@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answersSchema, checkEligibility, cooldownDaysFor, displayAnswers } from "@/lib/requests/model";
 import { REQUEST_TYPES } from "@/lib/setup/seed-data";
+import { resolveDatabaseUrl } from "@/lib/db";
 
 const NOW = new Date("2026-11-13T12:00:00Z");
 const type = { active: true, allowedWhenBanned: false, singleOpen: true };
@@ -73,5 +74,17 @@ describe("Seed-Antragsarten", () => {
 
   it("Anzeige lässt leere Antworten weg", () => {
     expect(displayAnswers([{ key: "a", label: "A", type: "text" }, { key: "b", label: "B", type: "text" }], { a: "x", b: "" })).toEqual([{ key: "a", label: "A", value: "x" }]);
+  });
+});
+
+
+describe("Eigene Datenbank", () => {
+  it("ergänzt nordverkehr_support, wenn kein Name in der URL steht", () => {
+    expect(resolveDatabaseUrl({ DATABASE_URL: "mongodb+srv://u:p@c.mongodb.net/?retryWrites=true" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?retryWrites=true");
+  });
+  it("DATABASE_NAME erzwingt die eigene DB – auch bei der Atlas-Verbindung des Bewerbungsportals", () => {
+    expect(resolveDatabaseUrl({ DATABASE_URL_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/nordverkehr?w=majority", DATABASE_NAME: "nordverkehr_support" })).toBe(
+      "mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?w=majority",
+    );
   });
 });

@@ -16,11 +16,11 @@ export const DEFAULT_DB_NAME = "nordverkehr_support";
  * Integration liefert oft `…mongodb.net/?retryWrites=true` ohne Namen –
  * dann wird `nordverkehr_support` ergänzt.
  */
-export function withDatabaseName(url: string, name = DEFAULT_DB_NAME): string {
+export function withDatabaseName(url: string, name = DEFAULT_DB_NAME, force = false): string {
   const match = url.match(/^(mongodb(?:\+srv)?:\/\/[^/?#]+)(\/[^?#]*)?(\?[^#]*)?(#.*)?$/);
   if (!match) return url;
   const [, base, path, query = ""] = match;
-  if (path && path !== "/") return url;
+  if (path && path !== "/" && !force) return url;
   return `${base}/${name}${query}`;
 }
 
@@ -31,7 +31,10 @@ export const DATABASE_URL_KEYS = ["DATABASE_URL", "DATABASE_URL_MONGODB_URI", "M
 export function resolveDatabaseUrl(env: Record<string, string | undefined> = process.env): string {
   for (const key of DATABASE_URL_KEYS) {
     const v = env[key];
-    if (v && v.trim()) return withDatabaseName(v.trim());
+    // DATABASE_NAME erzwingt die eigene Datenbank – so kann dieselbe Atlas-Verbindung
+    // wie beim Bewerbungsportal genutzt werden, ohne dessen Datenbank zu teilen.
+    const forced = env.DATABASE_NAME?.trim();
+    if (v && v.trim()) return withDatabaseName(v.trim(), forced || DEFAULT_DB_NAME, !!forced);
   }
   throw new Error(`Keine Datenbank-URL gesetzt (${DATABASE_URL_KEYS.join(" / ")}).`);
 }
