@@ -4,6 +4,7 @@ import { Kanban, ListBullets, LockSimple } from "@phosphor-icons/react/ssr";
 import { requireTeam } from "@/lib/auth/session";
 import { LiveRefresh } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { viewerOf as liveViewer } from "@/lib/tickets/service";
 import { listTeamTickets, parseTicketFilters } from "@/lib/team/queries";
 import { viewerOf } from "@/lib/tickets/service";
@@ -36,7 +37,7 @@ export default async function TeamTicketsPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <LiveRefresh query={liveScopeQuery({ type: "team-tickets" })} version={liveVer} />
+      <LiveRefresh query={liveScopeQuery({ type: "team-tickets" })} channels={liveChannels({ type: "team-tickets" })} version={liveVer} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="nv-label">Team // Tickets</p>

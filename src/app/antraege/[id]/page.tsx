@@ -11,6 +11,7 @@ import { RequestAnswerForm } from "@/components/requests/RequestAnswerForm";
 import { RequestProgress } from "@/components/requests/RequestProgress";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { viewerOf } from "@/lib/tickets/service";
 import { hasCertificate } from "@/lib/requests/certificate";
 import { certificateUrl } from "@/lib/requests/certificate-db";
@@ -44,7 +45,7 @@ export default async function PlayerRequestPage({ params, searchParams }: { para
     .map((m) => ({ ...m, source: "WEB" as const, attachments: [] }));
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
       <Container className="pt-28 sm:pt-32 pb-16">
         <Link href="/antraege" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Meine Anträge

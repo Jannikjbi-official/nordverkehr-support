@@ -16,6 +16,7 @@ import { listTeamMembers } from "@/lib/team/queries";
 import { Avatar, Notice, PriorityBadge, TicketStatusBadge, formatDayTime, formatRelative } from "@/components/ui";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { TicketComposer, TicketSideControls } from "@/components/team/TicketControls";
 
 export const metadata: Metadata = { title: "Ticket" };
@@ -55,7 +56,7 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
   const relevantTemplates = templates.filter((x) => !x.ticketCategory || x.ticketCategory === t.category);
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
       <div>
         <Link href="/team/tickets" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Alle Tickets

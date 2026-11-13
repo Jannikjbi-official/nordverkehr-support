@@ -16,6 +16,7 @@ import { listTeamMembers } from "@/lib/team/queries";
 import { Avatar, Notice, RequestStatusBadge, formatDay, formatDayTime, formatRelative } from "@/components/ui";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { CommentBox, DecisionPanel, RequestComposer, RequestSideActions, VoteButtons } from "@/components/requests/RequestTeamPanel";
 import { hasCertificate, verificationCode } from "@/lib/requests/certificate";
 import { certificateUrl } from "@/lib/requests/certificate-db";
@@ -66,7 +67,7 @@ export default async function TeamRequestPage({ params }: { params: Promise<{ id
   const relevantTemplates = templates.filter((x) => !x.requestTypeSlug || x.requestTypeSlug === r.type.slug);
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
       <div>
         <Link href="/team/antraege" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Alle Anträge

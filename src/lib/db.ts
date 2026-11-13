@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
+import { channelsForMutation, notifyChanged } from "@/lib/realtime";
 
 /**
  * Eine PrismaClient-Instanz pro Prozess (auch über Hot-Reloads hinweg).
@@ -83,10 +84,28 @@ const noNulBytes = Prisma.defineExtension({
   },
 });
 
+/** Nach Schreibzugriffen auf Tickets/Anträge ein Live-Signal senden (siehe realtime.ts) */
+const realtimeSignals = Prisma.defineExtension({
+  name: "realtime-signals",
+  query: {
+    $allModels: {
+      async $allOperations({ model, operation, args, query }) {
+        const result = await query(args);
+        try {
+          notifyChanged(channelsForMutation(model, operation, args as Record<string, unknown>, result));
+        } catch {
+          // Live-Signale sind ein Extra – nie den eigentlichen Vorgang stören
+        }
+        return result;
+      },
+    },
+  },
+});
+
 export function getDb(): PrismaClient {
   if (!globalForPrisma.__nvsPrisma) {
     // Query-Extension ändert keine Typen – der Cast ist sicher
-    globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(noNulBytes) as unknown as PrismaClient;
+    globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(noNulBytes).$extends(realtimeSignals) as unknown as PrismaClient;
   }
   return globalForPrisma.__nvsPrisma;
 }

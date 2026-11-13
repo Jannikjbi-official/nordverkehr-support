@@ -8,6 +8,7 @@ import { categoryLabel, displayFields } from "@/lib/tickets/categories";
 import { Container, Notice, TicketStatusBadge, formatDayTime } from "@/components/ui";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { viewerOf } from "@/lib/tickets/service";
 import { PlayerTicketActions } from "@/components/tickets/PlayerTicketActions";
 
@@ -32,7 +33,7 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
   const fields = displayFields(t.category, t.fields);
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
       <Container className="pt-32 sm:pt-36">
         <Link href="/dashboard" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Meine Tickets

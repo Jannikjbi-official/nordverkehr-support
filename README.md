@@ -230,6 +230,7 @@ git push -u origin main
 | `TEAMSPEAK_WEBQUERY_URL` / `TEAMSPEAK_WEBQUERY_KEY` | TeamSpeak-Status inkl. Nutzerzahl (WebQuery, TS3 ≥ 3.12) | TeamSpeak-Server-Konfiguration | optional |
 | `TEAMSPEAK_HOST` / `TEAMSPEAK_PORT` | TeamSpeak nur als „erreichbar ja/nein“ (TCP) | Server-Adresse, Port z. B. 10011 | optional |
 | `ANTHROPIC_API_KEY` | KI-Entwürfe (kostenpflichtig) | [Claude Console](https://platform.claude.com) → API Keys | optional |
+| `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | Nachrichten erscheinen **sofort** beim Gegenüber (Push) | [pusher.com](https://pusher.com) → Channels → App anlegen (Cluster `eu`) → App Keys | empfohlen |
 | `AI_MODEL_DEFAULT` / `AI_MODEL_FAST` | Modelle | Standard `claude-sonnet-5-5` / `claude-haiku-5-5` | optional |
 | `DEV_LOGIN` | Dev-Login ohne Discord – **nur lokal** | `true` | nie in Produktion |
 
@@ -259,6 +260,13 @@ Rollen kommen aus Discord und werden serverseitig geprüft (Bot, Cache 60 s, fai
 ---
 
 ## Betrieb
+
+### Live-Nachrichten
+Eigene Nachrichten erscheinen beim Senden sofort. Damit sie auch **beim Gegenüber sofort** auftauchen, schickt der Server nach jeder Änderung ein Signal über Pusher Channels (Vercel-Funktionen können keine dauerhaften Verbindungen halten). Die Signale enthalten **keine Inhalte** – nur „hier hat sich etwas geändert“; der Browser lädt die Daten danach selbst mit voller Rechteprüfung. Interne Notizen, Kommentare und Abstimmungen gehen nur auf Team-Kanäle.
+
+Einrichten (5 Minuten): auf pusher.com einen Account anlegen → *Channels* → *Create app* (Cluster **eu**) → *App Keys* → die vier Werte in Vercel als Umgebungsvariablen eintragen → neu deployen (die `NEXT_PUBLIC_…`-Werte werden beim Build eingebaut). Der kostenlose Plan (200.000 Nachrichten/Tag, 100 gleichzeitige Verbindungen) reicht für ein RP-Projekt locker. Alternativ selbst gehostet mit [Soketi](https://soketi.app) (`PUSHER_HOST` usw., siehe `.env.example`).
+
+Ohne Pusher fragen offene Seiten alle 3 s (bei Ruhe seltener, im Hintergrund-Tab gar nicht) nach Änderungen – funktioniert, aber mit 2–4 s Verzögerung.
 
 ### Hintergrundarbeiten
 `/api/cron/housekeeping` erledigt: Outbox-Wiederholungen, Erinnerungen, Auto-Close, Schließen gelöster Tickets, Archivieren entschiedener Anträge und einmal täglich die Löschfristen. Zusätzlich anstoßbar unter *Einstellungen & Discord → Hintergrundarbeiten jetzt ausführen*.

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireTeam } from "@/lib/auth/session";
 import { LiveRefresh } from "@/components/live/Live";
 import { liveScopeQuery, liveVersion } from "@/lib/live";
+import { liveChannels } from "@/lib/live-channels";
 import { viewerOf as liveViewer } from "@/lib/tickets/service";
 import { requestTeamWhere, teamCanSeeRequest } from "@/lib/perms";
 import { viewerOf } from "@/lib/tickets/service";
@@ -42,7 +43,7 @@ export default async function TeamRequestsPage({ searchParams }: { searchParams:
 
   return (
     <div>
-      <LiveRefresh query={liveScopeQuery({ type: "team-requests" })} version={liveVer} />
+      <LiveRefresh query={liveScopeQuery({ type: "team-requests" })} channels={liveChannels({ type: "team-requests" })} version={liveVer} />
       <p className="nv-label">Team // Anträge</p>
       <h1 className="nv-headline text-4xl mt-3">
         Anträge <em>({requests.length})</em>
