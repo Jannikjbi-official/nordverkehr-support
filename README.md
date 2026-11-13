@@ -150,12 +150,13 @@ git push -u origin main
 
 - Gleicher Cluster wie das Bewerbungsportal ist okay – aber **eigene Datenbank**: `…mongodb.net/nordverkehr_support?retryWrites=true&w=majority`.
 - Cluster in der EU (Frankfurt), DB-Nutzer mit `readWrite`, Netzwerkzugriff `0.0.0.0/0` (Vercel hat keine festen IPs).
-- Schema/Indizes: einmal lokal mit der Atlas-URL `npm run db:push` ausführen. Basisdaten (Kategorien, Artikel, Antragsarten, Bausteine) legt das Portal beim ersten Start einer leeren Datenbank **selbst** an – ohne Demo-Daten.
+- Am einfachsten in Vercel unter *Storage* den Atlas-Store mit dem Projekt verbinden (Prefix `DATABASE` → Variable `DATABASE_URL`) und `DATABASE_NAME=nordverkehr_support` setzen.
+- Schema/Indizes legt der **Build automatisch** an (`scripts/build-db-push.mts`, idempotent; ohne Datenbank-URL übersprungen, abschaltbar mit `SKIP_DB_PUSH=true`). Basisdaten (Kategorien, Artikel, Antragsarten, Bausteine) legt das Portal beim ersten Start einer leeren Datenbank **selbst** an – ohne Demo-Daten.
 
 ### 3. Vercel
 
 1. *Add New → Project* → GitHub-Repo `nordverkehr-support` importieren. Framework „Next.js“ wird erkannt.
-2. Build-Einstellungen kommen aus [`vercel.json`](vercel.json): `npm ci`, `npm run build` (= `prisma generate && next build`), Region `fra1`.
+2. Build-Einstellungen kommen aus [`vercel.json`](vercel.json): `npm ci`, `npm run build` (= `prisma generate` → Schema-Abgleich der Datenbank → `next build`), Region `fra1`.
 3. **Node.js-Version:** *Settings → Build and Deployment → Node.js Version* auf **22.x** (oder höher) stellen (`engines` in `package.json`: `22.x`).
 4. Alle [Umgebungsvariablen](#umgebungsvariablen) unter *Settings → Environment Variables* eintragen (Production; `DEV_LOGIN` **nicht**).
 5. Deployen. Jeder Push auf `main` deployt automatisch, Pull Requests bekommen Preview-Deployments.
