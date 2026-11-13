@@ -15,7 +15,7 @@ export default async function PlayersPage({ searchParams }: { searchParams: Prom
     where: query
       ? { OR: [{ username: { contains: query, mode: "insensitive" } }, { globalName: { contains: query, mode: "insensitive" } }, { discordId: query }] }
       : {},
-    orderBy: { lastLoginAt: "desc" },
+    orderBy: { lastLoginAt: { sort: "desc", nulls: "last" } },
     take: 50,
     include: { _count: { select: { tickets: true, requests: true } } },
   });

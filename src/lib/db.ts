@@ -1,55 +1,92 @@
-import { PrismaClient } from "@prisma/client";
-import { explicitNulls } from "@/lib/db-nulls";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 /**
  * Eine PrismaClient-Instanz pro Prozess (auch über Hot-Reloads hinweg).
  * Wird lazy erzeugt, damit `next build` ohne Datenbank durchläuft.
- * Datenbank: MongoDB (Replica Set, z. B. MongoDB Atlas) über DATABASE_URL
- * (oder die Variable der Vercel-Atlas-Integration, siehe resolveDatabaseUrl).
+ * Datenbank: PostgreSQL (z. B. Neon über die Vercel-Integration).
  */
 const globalForPrisma = globalThis as unknown as { __nvsPrisma?: PrismaClient };
 
-export const DEFAULT_DB_NAME = "nordverkehr_support";
+type Env = Record<string, string | undefined>;
+
+const isPostgresUrl = (v: string | undefined): v is string => !!v && /^postgres(ql)?:\/\//i.test(v.trim());
+
+/** Laufzeit-Verbindung (gepoolt), in dieser Reihenfolge. Neon/Vercel legen je nach Präfix eigene Namen an. */
+export const DATABASE_URL_KEYS = ["DATABASE_URL", "DATABASE_POSTGRES_PRISMA_URL", "POSTGRES_PRISMA_URL", "DATABASE_POSTGRES_URL", "POSTGRES_URL"] as const;
+/** Direkte Verbindung (ohne Pooler) – für Schema-Änderungen per `prisma db push`. */
+export const DIRECT_URL_KEYS = ["DATABASE_URL_UNPOOLED", "DATABASE_POSTGRES_URL_NON_POOLING", "POSTGRES_URL_NON_POOLING", "DIRECT_URL"] as const;
+
+function findKey(env: Env, known: readonly string[], suffixes: string[]): string | null {
+  for (const key of known) if (isPostgresUrl(env[key])) return key;
+  // Integration mit eigenem Präfix, z. B. STORAGE_POSTGRES_PRISMA_URL
+  for (const suffix of suffixes) {
+    const key = Object.keys(env).sort().find((k) => k.endsWith(suffix) && isPostgresUrl(env[k]));
+    if (key) return key;
+  }
+  return null;
+}
+
+/** Name der Variable mit der (gepoolten) Postgres-Verbindung – andere Datenbanken (z. B. alte MongoDB-URL) werden ignoriert. */
+export function findDatabaseUrlKey(env: Env = process.env): string | null {
+  return findKey(env, DATABASE_URL_KEYS, ["_POSTGRES_PRISMA_URL", "_DATABASE_URL", "_POSTGRES_URL"]);
+}
+
+export function findDirectUrlKey(env: Env = process.env): string | null {
+  return findKey(env, DIRECT_URL_KEYS, ["_URL_UNPOOLED", "_POSTGRES_URL_NON_POOLING"]);
+}
 
 /**
- * Prisma braucht einen Datenbanknamen im Connection String. Die Vercel-Atlas-
- * Integration liefert oft `…mongodb.net/?retryWrites=true` ohne Namen –
- * dann wird `nordverkehr_support` ergänzt.
+ * Neon schläft im Free-Plan nach ein paar Minuten ein; das Aufwachen kann
+ * länger dauern als Prismas Standard-Timeout (5 s) – daher großzügiger.
  */
-export function withDatabaseName(url: string, name = DEFAULT_DB_NAME, force = false): string {
-  const match = url.match(/^(mongodb(?:\+srv)?:\/\/[^/?#]+)(\/[^?#]*)?(\?[^#]*)?(#.*)?$/);
-  if (!match) return url;
-  const [, base, path, query = ""] = match;
-  if (path && path !== "/" && !force) return url;
-  return `${base}/${name}${query}`;
+export function withConnectOptions(url: string): string {
+  const u = new URL(url);
+  if (!u.searchParams.has("connect_timeout")) u.searchParams.set("connect_timeout", "15");
+  return u.toString();
 }
 
-/** Variablennamen, unter denen die Verbindung stehen darf (Vercel-Atlas-Integration legt eigene an). */
-export const DATABASE_URL_KEYS = ["DATABASE_URL", "DATABASE_MONGODB_URI", "DATABASE_URL_MONGODB_URI", "MONGODB_URI"] as const;
-
-/** Name der gesetzten Verbindungs-Variable (bekannte Namen, sonst jede `…_MONGODB_URI` der Atlas-Integration) */
-export function findDatabaseUrlKey(env: Record<string, string | undefined> = process.env): string | null {
-  for (const key of DATABASE_URL_KEYS) if (env[key]?.trim()) return key;
-  return Object.keys(env).find((k) => k.endsWith("_MONGODB_URI") && env[k]?.trim()) ?? null;
-}
-
-/** Verbindungs-URL finden und um den Datenbanknamen ergänzen. */
-export function resolveDatabaseUrl(env: Record<string, string | undefined> = process.env): string {
+/** Verbindung für die App (gepoolt). */
+export function resolveDatabaseUrl(env: Env = process.env): string {
   const key = findDatabaseUrlKey(env);
-  {
-    const v = key ? env[key] : undefined;
-    // DATABASE_NAME erzwingt die eigene Datenbank – so kann dieselbe Atlas-Verbindung
-    // wie beim Bewerbungsportal genutzt werden, ohne dessen Datenbank zu teilen.
-    const forced = env.DATABASE_NAME?.trim();
-    if (v && v.trim()) return withDatabaseName(v.trim(), forced || DEFAULT_DB_NAME, !!forced);
-  }
-  throw new Error(`Keine Datenbank-URL gesetzt (${DATABASE_URL_KEYS.join(" / ")}).`);
+  if (!key) throw new Error(`Keine Postgres-Datenbank-URL gesetzt (${DATABASE_URL_KEYS.join(" / ")}).`);
+  return withConnectOptions(env[key]!.trim());
 }
+
+/** Verbindung für Schema-Änderungen: direkt, sonst die normale. */
+export function resolveDirectUrl(env: Env = process.env): string {
+  const key = findDirectUrlKey(env);
+  return key ? withConnectOptions(env[key]!.trim()) : resolveDatabaseUrl(env);
+}
+
+// Postgres lehnt NUL-Zeichen in Texten ab – aus Eingaben still entfernen statt mit Fehler abzubrechen.
+function stripNul<T>(value: T): T {
+  if (typeof value === "string") return (value.includes("\u0000") ? value.replaceAll("\u0000", "") : value) as T;
+  if (Array.isArray(value)) return value.map(stripNul) as T;
+  if (value && typeof value === "object" && !(value instanceof Date) && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, stripNul(v)])) as T;
+  }
+  return value;
+}
+
+const noNulBytes = Prisma.defineExtension({
+  name: "no-nul-bytes",
+  query: {
+    $allModels: {
+      $allOperations({ operation, args, query }) {
+        if (["create", "createMany", "update", "updateMany", "upsert"].includes(operation) && args && typeof args === "object") {
+          const a = args as Record<string, unknown>;
+          for (const k of ["data", "create", "update"]) if (k in a) a[k] = stripNul(a[k]);
+        }
+        return query(args);
+      },
+    },
+  },
+});
 
 export function getDb(): PrismaClient {
   if (!globalForPrisma.__nvsPrisma) {
-    // Query-Extension ändert keine Typen – der Cast ist sicher (siehe db-nulls.ts)
-    globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(explicitNulls) as unknown as PrismaClient;
+    // Query-Extension ändert keine Typen – der Cast ist sicher
+    globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(noNulBytes) as unknown as PrismaClient;
   }
   return globalForPrisma.__nvsPrisma;
 }

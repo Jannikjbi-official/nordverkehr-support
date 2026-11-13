@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 
-/** Integrationstests gegen eine echte MongoDB (mongodb-memory-server). */
+/** Integrationstests gegen ein echtes Postgres (eingebettet oder TEST_DATABASE_URL). */
 export default defineConfig({
   resolve: {
     alias: {

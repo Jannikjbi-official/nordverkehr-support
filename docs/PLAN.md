@@ -9,7 +9,7 @@ Stand: 13.11.2026 · Status: **umgesetzt**
 3. **Vier-Augen-Prinzip:** immer zwei Personen bei Entbannung und Einspruch (je Antragsart schaltbar). Wer die Strafe ausgesprochen hat, zählt nie als zweite Person.
 4. **Login:** immer mit Discord – auch für Gebannte. Wer vom Discord gebannt ist, sieht nur den Entbannungsantrag und den Stand seiner Anträge.
 
-Abweichungen vom Entwurf unten: kein Worker; **keine Discord-Threads** (nachträglich entfernt – Tickets laufen nur im Portal, Discord nur für Panel, Formular, DMs und Bewertung). Abschnitte zu Threads/Abgleich sind damit überholt, siehe README → Architektur.
+Abweichungen vom Entwurf unten: kein Worker; **Datenbank ist jetzt PostgreSQL (Neon)** statt MongoDB (Tabellen mit `sup_`-Präfix, Integrationstests gegen echtes Postgres); **keine Discord-Threads** (nachträglich entfernt – Tickets laufen nur im Portal, Discord nur für Panel, Formular, DMs und Bewertung). Abschnitte zu Threads/Abgleich sind damit überholt, siehe README → Architektur.
 
 ---
 

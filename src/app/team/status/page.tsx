@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Statusseite pflegen" };
 
 export default async function TeamStatusPage() {
   const { access } = await requireTeam();
-  const incidents = await db.statusIncident.findMany({ orderBy: [{ resolvedAt: "asc" }, { startsAt: "desc" }], take: 50 });
+  const incidents = await db.statusIncident.findMany({ orderBy: [{ resolvedAt: { sort: "asc", nulls: "first" } }, { startsAt: "desc" }], take: 50 });
   return (
     <div>
       <p className="nv-label">Team // Statusseite</p>

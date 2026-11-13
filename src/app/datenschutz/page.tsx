@@ -85,7 +85,7 @@ export default async function PrivacyPage() {
           <h2 id="weitergabe">Wer die Daten sieht</h2>
           <p>
             Nur das Team – und auch das nicht komplett: Beschwerden über Teammitglieder, Entbannungen, Einsprüche und Rückerstattungen sieht nur Moderation/Leitung, und wer
-            selbst beschuldigt ist, sieht den Vorgang nie. Wir hosten bei Vercel (EU-Region Frankfurt) und MongoDB Atlas (EU). Nachrichten an dich laufen über Discord.
+            selbst beschuldigt ist, sieht den Vorgang nie. Wir hosten bei Vercel (EU-Region Frankfurt) und Neon (Postgres-Datenbank, EU). Nachrichten an dich laufen über Discord.
           </p>
           <p>
             <strong>KI (optional):</strong> Ist die KI-Unterstützung eingeschaltet, kann das Team Antwort-Entwürfe und Zusammenfassungen über die Claude-API von Anthropic

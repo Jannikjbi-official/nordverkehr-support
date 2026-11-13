@@ -1,6 +1,6 @@
 /**
  * Volltextsuche für Hilfe-Artikel mit Tippfehler-Toleranz – rein, ohne
- * Atlas Search (läuft lokal und auf jedem MongoDB-Plan).
+ * Datenbank-Volltextindex (läuft lokal und auf jedem Datenbank-Plan).
  *
  *  - Normalisierung: klein, Umlaute → ae/oe/ue/ss, Satzzeichen weg
  *  - Treffer je Suchwort: exakt > Wortanfang > Teilwort > Tippfehler

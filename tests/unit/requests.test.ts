@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answersSchema, checkEligibility, cooldownDaysFor, displayAnswers } from "@/lib/requests/model";
 import { REQUEST_TYPES } from "@/lib/setup/seed-data";
-import { resolveDatabaseUrl } from "@/lib/db";
+import { resolveDatabaseUrl, resolveDirectUrl } from "@/lib/db";
 
 const NOW = new Date("2026-11-13T12:00:00Z");
 const type = { active: true, allowedWhenBanned: false, singleOpen: true };
@@ -78,17 +78,22 @@ describe("Seed-Antragsarten", () => {
 });
 
 
-describe("Eigene Datenbank", () => {
-  it("ergänzt nordverkehr_support, wenn kein Name in der URL steht", () => {
-    expect(resolveDatabaseUrl({ DATABASE_URL: "mongodb+srv://u:p@c.mongodb.net/?retryWrites=true" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?retryWrites=true");
+describe("Datenbank-Verbindung (Postgres/Neon)", () => {
+  const pooled = "postgresql://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+  const direct = "postgresql://u:p@ep-x.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+
+  it("nimmt DATABASE_URL und ergänzt einen großzügigen connect_timeout", () => {
+    expect(resolveDatabaseUrl({ DATABASE_URL: pooled })).toBe(`${pooled}&connect_timeout=15`);
+    expect(resolveDatabaseUrl({ DATABASE_URL: `${pooled}&connect_timeout=30` })).toBe(`${pooled}&connect_timeout=30`);
   });
-  it("DATABASE_NAME erzwingt die eigene DB – auch bei der Atlas-Verbindung des Bewerbungsportals", () => {
-    expect(resolveDatabaseUrl({ DATABASE_URL_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/nordverkehr?w=majority", DATABASE_NAME: "nordverkehr_support" })).toBe(
-      "mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?w=majority",
-    );
+
+  it("ignoriert die alte MongoDB-URL und findet Neon-Variablen mit Präfix", () => {
+    expect(resolveDatabaseUrl({ DATABASE_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/", STORAGE_POSTGRES_PRISMA_URL: pooled })).toBe(`${pooled}&connect_timeout=15`);
+    expect(() => resolveDatabaseUrl({ DATABASE_URL: "mongodb+srv://u:p@c.mongodb.net/" })).toThrow("Postgres");
   });
-  it("erkennt die Variable der Vercel-Atlas-Integration (…_MONGODB_URI)", () => {
-    expect(resolveDatabaseUrl({ DATABASE_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/?w=majority", DATABASE_NAME: "nordverkehr_support" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support?w=majority");
-    expect(resolveDatabaseUrl({ STORAGE_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/" })).toBe("mongodb+srv://u:p@c.mongodb.net/nordverkehr_support");
+
+  it("Schema-Änderungen über die direkte Verbindung (ohne Pooler), sonst die normale", () => {
+    expect(resolveDirectUrl({ DATABASE_URL: pooled, DATABASE_URL_UNPOOLED: direct })).toBe(`${direct}&connect_timeout=15`);
+    expect(resolveDirectUrl({ DATABASE_URL: pooled })).toBe(`${pooled}&connect_timeout=15`);
   });
 });

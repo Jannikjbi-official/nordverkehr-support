@@ -59,5 +59,5 @@ export async function listTeamTickets(viewer: Viewer, f: TicketFilters, take = 2
 
 /** Teammitglieder für Weitergabe/Beschuldigte */
 export function listTeamMembers() {
-  return db.user.findMany({ where: { teamLevel: { not: "NONE" } }, select: { id: true, username: true, globalName: true, discordId: true, teamLevel: true }, orderBy: { globalName: "asc" } });
+  return db.user.findMany({ where: { teamLevel: { not: "NONE" } }, select: { id: true, username: true, globalName: true, discordId: true, teamLevel: true }, orderBy: { globalName: { sort: "asc", nulls: "last" } } });
 }

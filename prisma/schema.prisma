@@ -1,17 +1,16 @@
-// Nordverkehr Support-Center – Datenmodell (MongoDB)
-// Nach jeder Änderung: `npm run db:push` (überträgt Schema + Indizes)
+// Nordverkehr Support-Center – Datenmodell (PostgreSQL, z. B. Neon)
+// Nach jeder Änderung: `npm run db:push` (überträgt Tabellen + Indizes;
+// auf Vercel passiert das automatisch beim Build).
 //
-// Eigene Datenbank (Standard: `nordverkehr_support`) UND eigene Collection-Namen
-// mit Präfix `sup_` – so kollidiert nichts mit dem Bewerbungsportal, selbst wenn
-// beide versehentlich auf dieselbe Datenbank zeigen.
-// MongoDB muss als Replica Set laufen (Atlas: immer; lokal: `npm run db:dev`).
+// Tabellen mit Präfix `sup_` – so kollidiert nichts, falls die Datenbank
+// mit einem anderen Projekt geteilt wird.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -157,7 +156,7 @@ enum OutboxStatus {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id               String   @id @default(cuid()) @map("_id")
+  id               String   @id @default(cuid())
   discordId        String   @unique
   username         String
   globalName       String?
@@ -210,7 +209,7 @@ model User {
 
 /// Interne Notizen des Teams zu einer Person
 model PlayerNote {
-  id        String   @id @default(cuid()) @map("_id")
+  id        String   @id @default(cuid())
   subjectId String
   subject   User     @relation("NoteSubject", fields: [subjectId], references: [id], onDelete: Cascade)
   authorId  String?
@@ -224,7 +223,7 @@ model PlayerNote {
 
 /// Banns, Verwarnungen, Kicks, Jail, Geldstrafen – manuell, aus Discord oder später aus txAdmin
 model Sanction {
-  id                String         @id @default(cuid()) @map("_id")
+  id                String         @id @default(cuid())
   subjectDiscordId  String
   subjectId         String?
   subject           User?          @relation("SanctionSubject", fields: [subjectId], references: [id], onDelete: SetNull)
@@ -257,7 +256,7 @@ model Sanction {
 // ─────────────────────────────────────────────────────────────
 
 model HelpCategory {
-  id          String        @id @default(cuid()) @map("_id")
+  id          String        @id @default(cuid())
   slug        String        @unique
   title       String
   description String
@@ -269,7 +268,7 @@ model HelpCategory {
 }
 
 model HelpArticle {
-  id               String        @id @default(cuid()) @map("_id")
+  id               String        @id @default(cuid())
   slug             String        @unique
   title            String
   summary          String
@@ -300,7 +299,7 @@ model HelpArticle {
 
 /// "Hat dir das geholfen?" – anonym, nur ein Fingerabdruck pro Tag gegen Mehrfachabstimmung
 model ArticleFeedback {
-  id          String      @id @default(cuid()) @map("_id")
+  id          String      @id @default(cuid())
   articleId   String
   article     HelpArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
   helpful     Boolean
@@ -314,7 +313,7 @@ model ArticleFeedback {
 
 /// Suchbegriffe ohne Treffer (für das Team)
 model SearchMiss {
-  id      String   @id @default(cuid()) @map("_id")
+  id      String   @id @default(cuid())
   term    String   @unique
   count   Int      @default(1)
   firstAt DateTime @default(now())
@@ -325,7 +324,7 @@ model SearchMiss {
 
 /// Bekannte Probleme und Wartungen (Statusseite)
 model StatusIncident {
-  id          String           @id @default(cuid()) @map("_id")
+  id          String           @id @default(cuid())
   title       String
   body        String
   kind        IncidentKind     @default(PROBLEM)
@@ -346,7 +345,7 @@ model StatusIncident {
 
 /// Kurzzeit-Cache für externe Statusabfragen (FiveM, TeamSpeak)
 model StatusCache {
-  key       String   @id @map("_id")
+  key       String   @id
   data      Json
   fetchedAt DateTime
 
@@ -358,7 +357,7 @@ model StatusCache {
 // ─────────────────────────────────────────────────────────────
 
 model Ticket {
-  id                String         @id @default(cuid()) @map("_id")
+  id                String         @id @default(cuid())
   /// NVS-2026-0001
   publicId          String         @unique
   /// technik | beschwerde | bug | regelwerk | sonstiges (siehe lib/tickets/categories.ts)
@@ -411,7 +410,7 @@ model Ticket {
 }
 
 model TicketMessage {
-  id               String         @id @default(cuid()) @map("_id")
+  id               String         @id @default(cuid())
   ticketId         String
   ticket           Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   authorId         String?
@@ -438,7 +437,7 @@ model TicketMessage {
 
 /// Verlauf: Status, Claim, Priorität, Weitergabe …
 model TicketEvent {
-  id        String   @id @default(cuid()) @map("_id")
+  id        String   @id @default(cuid())
   ticketId  String
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   actorId   String?
@@ -455,7 +454,7 @@ model TicketEvent {
 
 /// Bild (WebP ohne Metadaten in der DB – Vercel hat kein Dateisystem) oder Clip-Link
 model Attachment {
-  id              String         @id @default(cuid()) @map("_id")
+  id              String         @id @default(cuid())
   ownerId         String
   owner           User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   kind            AttachmentKind
@@ -489,7 +488,7 @@ model Attachment {
 // ─────────────────────────────────────────────────────────────
 
 model RequestType {
-  id                String    @id @default(cuid()) @map("_id")
+  id                String    @id @default(cuid())
   slug              String    @unique
   title             String
   description       String
@@ -528,7 +527,7 @@ model RequestType {
 }
 
 model Request {
-  id          String        @id @default(cuid()) @map("_id")
+  id          String        @id @default(cuid())
   /// NVA-2026-0001
   publicId    String        @unique
   typeId      String
@@ -578,7 +577,7 @@ model Request {
 
 /// Rückfragen und Antworten zwischen Team und Spieler
 model RequestMessage {
-  id             String         @id @default(cuid()) @map("_id")
+  id             String         @id @default(cuid())
   requestId      String
   request        Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
   authorId       String?
@@ -598,7 +597,7 @@ model RequestMessage {
 
 /// Interne Diskussion
 model RequestComment {
-  id        String   @id @default(cuid()) @map("_id")
+  id        String   @id @default(cuid())
   requestId String
   request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   authorId  String
@@ -611,7 +610,7 @@ model RequestComment {
 }
 
 model RequestVote {
-  id        String    @id @default(cuid()) @map("_id")
+  id        String    @id @default(cuid())
   requestId String
   request   Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
   userId    String
@@ -626,7 +625,7 @@ model RequestVote {
 
 /// Entscheidungsvorschlag + Zustimmung (Vier-Augen-Prinzip)
 model RequestDecision {
-  id           String         @id @default(cuid()) @map("_id")
+  id           String         @id @default(cuid())
   requestId    String
   request      Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
   proposedById String
@@ -645,7 +644,7 @@ model RequestDecision {
 
 /// Sperrfrist nach Ablehnung
 model Cooldown {
-  id        String      @id @default(cuid()) @map("_id")
+  id        String      @id @default(cuid())
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   typeId    String
@@ -665,7 +664,7 @@ model Cooldown {
 
 /// Nachrichtenbausteine mit Platzhaltern
 model MessageTemplate {
-  id              String   @id @default(cuid()) @map("_id")
+  id              String   @id @default(cuid())
   title           String
   body            String
   /// ticket | request | all
@@ -682,14 +681,14 @@ model MessageTemplate {
 }
 
 model Setting {
-  key   String @id @map("_id")
+  key   String @id
   value Json
 
   @@map("sup_settings")
 }
 
 model AuditLog {
-  id         String   @id @default(cuid()) @map("_id")
+  id         String   @id @default(cuid())
   actorId    String?
   action     String
   targetType String?
@@ -703,7 +702,7 @@ model AuditLog {
 }
 
 model AiUsage {
-  id           String   @id @default(cuid()) @map("_id")
+  id           String   @id @default(cuid())
   feature      String
   model        String
   inputTokens  Int
@@ -717,7 +716,7 @@ model AiUsage {
 }
 
 model RateLimit {
-  key     String   @id @map("_id")
+  key     String   @id
   count   Int
   resetAt DateTime
 
@@ -726,14 +725,14 @@ model RateLimit {
 
 /// Kurze exklusive Sperre (z. B. Hintergrundarbeiten höchstens alle 5 Minuten)
 model Lease {
-  key   String   @id @map("_id")
+  key   String   @id
   until DateTime
 
   @@map("sup_leases")
 }
 
 model OutboxJob {
-  id               String          @id @default(cuid()) @map("_id")
+  id               String          @id @default(cuid())
   type             OutboxType
   payload          Json
   status           OutboxStatus    @default(PENDING)
@@ -756,7 +755,7 @@ model OutboxJob {
 }
 
 model Counter {
-  key   String @id @map("_id")
+  key   String @id
   value Int
 
   @@map("sup_counters")

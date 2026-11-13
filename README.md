@@ -26,7 +26,7 @@ Hilfe-Center, Tickets und Anträge für **Nordverkehr** (Hamburg-Roleplay, Start
 ### Hilfe-Center (öffentlich)
 - Startseite „Wobei können wir *helfen?*“ mit großer Suche (Live-Vorschläge) und 8 Kategorien.
 - Artikel in Markdown mit Inhaltsverzeichnis, „Zuletzt aktualisiert“, verwandten Artikeln und anonymem „Hat dir das geholfen?“ (+ Kommentar).
-- **Volltextsuche mit Tippfehler-Toleranz** (eigener Index, kein Atlas Search nötig): „whitlist“, „salty chat“, „metagamming“ finden die richtigen Artikel. Suchbegriffe ohne Treffer landen anonym in der Statistik.
+- **Volltextsuche mit Tippfehler-Toleranz** (eigener Index, kein Datenbank-Volltextindex nötig): „whitlist“, „salty chat“, „metagamming“ finden die richtigen Artikel. Suchbegriffe ohne Treffer landen anonym in der Statistik.
 - **Statusseite:** Gameserver (FiveM, Spieler online, 60 s gecacht), TeamSpeak, bekannte Probleme und Wartungen.
 - 14 Start-Artikel (u. a. „SaltyChat verbindet nicht“, „Wie komme ich auf die Whitelist?“, „FiveM startet nicht“, „Was ist Metagaming?“, „Wie stelle ich einen Entbannungsantrag?“).
 
@@ -61,7 +61,7 @@ Hilfe-Center, Tickets und Anträge für **Nordverkehr** (Hamburg-Roleplay, Start
 Vercel-Funktionen sind serverless – ein dauerhaft verbundener Discord-Bot (Gateway) läuft dort nicht. Das Support-Center braucht **keinen Dauer-Worker**:
 
 ```
- Spieler/Team (Browser) ──► support.nordverkehr.xyz (Vercel, fra1) ──► MongoDB Atlas (DB nordverkehr_support)
+ Spieler/Team (Browser) ──► support.nordverkehr.xyz (Vercel, fra1) ──► Neon Postgres (eu-central-1)
                                │  Seiten, Server Actions, API
  Discord (HTTP-Interaktionen) ─┤  /api/discord/interactions  ── Weiterleitung ──► bewerbung.nordverkehr.xyz
                                │  Outbox → Discord REST (DMs, Log)
@@ -115,7 +115,7 @@ npm install
 cp .env.example .env
 ```
 
-In `.env` mindestens `AUTH_SECRET` setzen und für den Start ohne Discord `DEV_LOGIN="true"` eintragen (`DISCORD_GUILD_ID` leer lassen). Dann in einem eigenen Terminal die lokale MongoDB starten (Port 27018, damit das Bewerbungsportal auf 27017 parallel laufen kann):
+In `.env` mindestens `AUTH_SECRET` setzen und für den Start ohne Discord `DEV_LOGIN="true"` eintragen (`DISCORD_GUILD_ID` leer lassen). Dann in einem eigenen Terminal ein lokales Postgres starten (eingebettet, ohne Docker; Port 54329, Daten in `.data/postgres`). Alternativ geht jede andere Postgres-Datenbank, z. B. ein eigener Neon-Branch – dann nur `DATABASE_URL` anpassen:
 
 ```bash
 npm run db:dev
@@ -147,12 +147,12 @@ Das Repository heißt `nordverkehr-support`. Keine Secrets committen – `.env*`
 git push -u origin main
 ```
 
-### 2. Datenbank (MongoDB Atlas)
+### 2. Datenbank (Neon Postgres)
 
-- Gleicher Cluster wie das Bewerbungsportal ist okay – aber **eigene Datenbank**: `…mongodb.net/nordverkehr_support?retryWrites=true&w=majority`.
-- Cluster in der EU (Frankfurt), DB-Nutzer mit `readWrite`, Netzwerkzugriff `0.0.0.0/0` (Vercel hat keine festen IPs).
-- Am einfachsten in Vercel unter *Storage* den Atlas-Store mit dem Projekt verbinden (Prefix `DATABASE` → Variable `DATABASE_URL`) und `DATABASE_NAME=nordverkehr_support` setzen.
-- Schema/Indizes legt der **Build automatisch** an (`scripts/build-db-push.mts`, idempotent; ohne Datenbank-URL übersprungen, abschaltbar mit `SKIP_DB_PUSH=true`). Basisdaten (Kategorien, Artikel, Antragsarten, Bausteine) legt das Portal beim ersten Start einer leeren Datenbank **selbst** an – ohne Demo-Daten.
+- In Vercel unter *Storage* eine Neon-Datenbank anlegen und mit dem Projekt verbinden (Prefix `DATABASE`). Die Integration setzt `DATABASE_URL` (gepoolt, für die App) und `DATABASE_URL_UNPOOLED` (direkt, für Schema-Änderungen) – mehr ist nicht nötig. Andere Präfixe erkennt das Portal auch (`…_POSTGRES_PRISMA_URL`, `…_POSTGRES_URL_NON_POOLING`).
+- Region **Frankfurt (aws-eu-central-1)** wählen – gleiche Region wie die Vercel-Funktionen (`fra1`), sonst kostet jede Abfrage spürbar Zeit.
+- Neon schläft im Free-Plan nach einigen Minuten ohne Zugriffe ein; der erste Aufruf danach dauert dann etwas länger (das Portal wartet bis zu 15 s auf die Verbindung).
+- Tabellen (Präfix `sup_`) und Indizes legt der **Build automatisch** an (`scripts/build-db-push.mts`, idempotent; ohne Datenbank-URL übersprungen, abschaltbar mit `SKIP_DB_PUSH=true`). Basisdaten (Kategorien, Artikel, Antragsarten, Bausteine) legt das Portal beim ersten Start einer leeren Datenbank **selbst** an – ohne Demo-Daten.
 
 ### 3. Vercel
 
@@ -206,8 +206,8 @@ git push -u origin main
 | `NEXT_PUBLIC_BEWERBUNG_URL` | Link zum Bewerbungsportal | `https://bewerbung.nordverkehr.xyz` | optional (Standard) |
 | `NEXT_PUBLIC_DISCORD_INVITE` | Discord-Einladung | dauerhafter Invite-Link | optional (Standard) |
 | `NEXT_PUBLIC_RULES_URL` | Regelwerk | Standard `<Hauptseite>/regeln` | optional |
-| `DATABASE_URL` | MongoDB (eigene DB `nordverkehr_support`) | Atlas → Connect → Drivers | ✅ |
-| `DATABASE_NAME` | Erzwingt den Datenbanknamen (`nordverkehr_support`) – nötig, wenn ihr die Atlas-Verbindung des Bewerbungsportals (`DATABASE_URL_MONGODB_URI` der Vercel-Integration) mitbenutzt | `nordverkehr_support` | empfohlen |
+| `DATABASE_URL` | Postgres, gepoolt (Neon) | setzt die Neon-Integration | ✅ |
+| `DATABASE_URL_UNPOOLED` | Postgres, direkt – für `db push` beim Build | setzt die Neon-Integration | empfohlen |
 | `AUTH_SECRET` | Verschlüsselung der Sitzungen | `npx auth secret` | ✅ |
 | `AUTH_DISCORD_ID` | Discord-Login | Developer Portal → OAuth2 → Client ID | ✅ |
 | `AUTH_DISCORD_SECRET` | Discord-Login | Developer Portal → OAuth2 → Client Secret | ✅ |
@@ -297,8 +297,8 @@ src/
     ai/             Claude-Anbindung, Schutzschicht, Entwürfe/Zusammenfassungen
     setup/          Startdaten, Seed-Artikel, Demo-Daten
   proxy.ts          Zugriffsschutz vor geschützten Routen
-prisma/             Schema (MongoDB, Collections mit Präfix sup_), Seed
-tests/              unit/ (Vitest), integration/ (echte MongoDB im Speicher)
+prisma/             Schema (PostgreSQL, Tabellen mit Präfix sup_), Seed
+tests/              unit/ (Vitest), integration/ (echtes Postgres)
 docs/               Plan, Patch fürs Bewerbungsportal
 ```
 
@@ -309,9 +309,9 @@ docs/               Plan, Patch fürs Bewerbungsportal
 | `npm run dev` | Entwicklung |
 | `npm run build` / `npm start` | Produktion |
 | `npm test` | Unit-Tests (Rechte, Vier-Augen, Bann-Zugriff, Router, Sync, Sperrfristen, Suche, Spam …) |
-| `npm run test:integration` | Integrationstests gegen eine echte MongoDB (lädt beim ersten Mal ein mongod-Binary) |
+| `npm run test:integration` | Integrationstests gegen echtes Postgres (eingebettet; oder `TEST_DATABASE_URL` setzen – dann in einem frischen Schema, das danach gelöscht wird) |
 | `npm run lint` / `npm run typecheck` | Qualität |
-| `npm run db:dev` | lokale MongoDB (Replica Set, Port 27018) |
+| `npm run db:dev` | lokales Postgres (eingebettet, Port 54329, Daten in `.data/postgres`) |
 | `npm run db:push` | Schema + Indizes |
 | `npm run db:seed` | Basisdaten + Demo (ohne Demo: `SEED_DEMO=false`) |
 

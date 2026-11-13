@@ -1,5 +1,5 @@
 /**
- * Integrationstest gegen eine echte MongoDB (mongodb-memory-server, Replica Set)
+ * Integrationstest gegen ein echtes Postgres (eingebettet oder TEST_DATABASE_URL)
  * und eine gefälschte Discord-API. Prüft die Abläufe Ende-zu-Ende über die
  * Services – inkl. der echten Prisma-Filter für Sichtbarkeit.
  *
@@ -8,10 +8,10 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { MongoMemoryReplSet } from "mongodb-memory-server";
+import { startTestDatabase, type TestDatabase } from "./postgres";
 import type { DiscordApi } from "@/lib/discord/client";
 
-let rs: MongoMemoryReplSet;
+let testDb: TestDatabase;
 type Mods = {
   db: typeof import("@/lib/db").db;
   tickets: typeof import("@/lib/tickets/service");
@@ -39,8 +39,8 @@ const fakeApi: DiscordApi = {
 };
 
 beforeAll(async () => {
-  rs = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
-  const url = rs.getUri("nordverkehr_support_test");
+  testDb = await startTestDatabase();
+  const url = testDb.url;
   Object.assign(process.env, {
     DATABASE_URL: url,
     DISCORD_BOT_TOKEN: "test-token",
@@ -48,7 +48,7 @@ beforeAll(async () => {
     DISCORD_TICKET_CHANNEL_ID: "200000000000000000",
     NEXT_PUBLIC_APP_URL: "https://support.example",
   });
-  // Asynchron! execSync würde die Event-Loop blockieren – dann läuft die Log-Pipe von mongod voll und alles hängt.
+  // Asynchron, damit die Event-Loop (und die Log-Ausgabe der DB) nicht blockiert
   await promisify(exec)("npx prisma db push --skip-generate", { env: { ...process.env, DATABASE_URL: url, CHECKPOINT_DISABLE: "1" }, timeout: 120_000 });
   m = {
     db: (await import("@/lib/db")).db,
@@ -66,8 +66,8 @@ beforeAll(async () => {
 }, 240_000);
 
 afterAll(async () => {
+  await testDb?.stop((schema) => m.db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`));
   await m?.db.$disconnect().catch(() => {});
-  await rs?.stop();
 });
 
 const user = (username: string) => m.db.user.findFirstOrThrow({ where: { username } });

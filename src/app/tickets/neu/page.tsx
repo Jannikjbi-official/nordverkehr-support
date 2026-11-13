@@ -16,7 +16,7 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
   const settings = await getSettings();
   const [open, team] = await Promise.all([
     db.ticket.count({ where: { creatorId: user.id, status: { in: ACTIVE_TICKET_STATUSES } } }),
-    db.user.findMany({ where: { teamLevel: { not: "NONE" }, NOT: { id: user.id } }, select: { id: true, globalName: true, username: true }, orderBy: { globalName: "asc" }, take: 100 }),
+    db.user.findMany({ where: { teamLevel: { not: "NONE" }, NOT: { id: user.id } }, select: { id: true, globalName: true, username: true }, orderBy: { globalName: { sort: "asc", nulls: "last" } }, take: 100 }),
   ]);
   const limitReached = open >= settings["tickets.maxOpen"];
   const initialCategory = CATEGORY_KEYS.includes(str("kategorie")) ? str("kategorie") : "";

@@ -55,7 +55,7 @@ const JOB_SELECT = { id: true, type: true, payload: true, attempts: true, maxAtt
 
 /**
  * Holt fällige Jobs exklusiv: bedingtes Update PENDING → PROCESSING ist in
- * MongoDB atomar, parallele Funktionen verarbeiten einen Job nie doppelt.
+ * der Datenbank atomar, parallele Funktionen verarbeiten einen Job nie doppelt.
  */
 async function claim(limit: number, ids?: string[]): Promise<OutboxJobLike[]> {
   const now = new Date();
