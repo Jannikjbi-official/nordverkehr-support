@@ -35,13 +35,23 @@ describe("Suche mit Tippfehler-Toleranz", () => {
     expect(search(index, "qqqxxyz", 3)).toEqual([]);
   });
 
-  it("Seed: 10–15 Artikel, alle Kategorien belegt, verwandte Artikel existieren", () => {
+  it("Seed: genug Artikel, eindeutige Slugs, alle Kategorien belegt, verwandte Artikel existieren", () => {
     expect(SEED_ARTICLES.length).toBeGreaterThanOrEqual(10);
-    expect(SEED_ARTICLES.length).toBeLessThanOrEqual(15);
+    expect(new Set(SEED_ARTICLES.map((a) => a.slug)).size).toBe(SEED_ARTICLES.length);
     for (const c of HELP_CATEGORIES) expect(SEED_ARTICLES.some((a) => a.category === c.slug)).toBe(true);
     const slugs = new Set(SEED_ARTICLES.map((a) => a.slug));
     for (const a of SEED_ARTICLES) for (const r of a.related) expect(slugs.has(r)).toBe(true);
   });
+});
+
+it("Suche findet die neuen Anleitungen (auch mit Tippfehlern)", () => {
+  expect(top("cache leeren")[0]).toBe("fivem-cache-loeschen");
+  expect(top("texturen laden nicht")[0]).toBe("fix-fuer-textur-bugs");
+  expect(top("mehr fps")[0]).toBe("grafik-einstellungen-fuer-mehr-fps");
+  expect(top("einreise")[0]).toBe("so-laeuft-deine-einreise");
+  expect(top("profiler")[0]).toBe("fivem-profiler-aufnahme");
+  expect(top("teamspeak join sound")[0]).toBe("teamspeak-join-und-leave-sounds-abschalten");
+  expect(top("identifer wechseln")[0]).toBe("cfx-identifier-wechseln");
 });
 
 describe("Markdown ist sicher", () => {

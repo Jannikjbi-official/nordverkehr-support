@@ -196,6 +196,7 @@ Fragen zur Bewerbung, die hier nicht beantwortet sind? Mach ein [Ticket unter So
     tags: ["fivem", "startet nicht", "absturz", "crash", "spiel startet nicht", "five m"],
     related: [
       "mit-dem-server-verbinden",
+      "fivem-cache-loeschen",
       "saltychat-verbindet-nicht",
     ],
     body: `Wenn FiveM nicht startet, abstürzt oder beim Laden hängen bleibt, liegt es fast nie am Server. Meistens ist es der Cache, eine beschädigte GTA-Installation oder ein Programm, das dazwischenfunkt. Arbeite die Schritte der Reihe nach ab und teste nach jedem.
@@ -210,7 +211,7 @@ Der Klassiker und oft schon die Lösung.
 4. Öffne den Ordner **data**. Lösch darin alles **außer** dem Ordner **game**.
 5. FiveM neu starten.
 
-Den Ordner **game** behältst du, sonst lädt FiveM alles neu herunter.
+Den Ordner **game** behältst du, sonst lädt FiveM alles neu herunter. Ausführlich: [FiveM-Cache löschen](/hilfe/technik-verbindung/fivem-cache-loeschen).
 
 ## 2. GTA-5-Dateien überprüfen
 
@@ -632,5 +633,258 @@ NV Lotse ist unser Bot. Er schickt dir zum Beispiel Bescheid, wenn sich bei dein
 ## Hilft alles nichts?
 
 Fragen zu deinen Daten, die hier nicht beantwortet sind? Mach ein [Ticket unter Sonstiges](/tickets/neu) auf.`,
+  },
+  // ─── Ergänzt (Anleitungen aus dem Discord, für Nordverkehr angepasst) ───
+  {
+    slug: "so-laeuft-deine-einreise",
+    title: "So läuft deine Einreise",
+    summary: "Die Einreise ist entspannter als du denkst: reines RP, kein Interview. So bereitest du dich vor.",
+    category: "erste-schritte",
+    tags: ["einreise", "einreisen", "erster tag", "charakter", "ic", "neu"],
+    related: ["erste-schritte-auf-nordverkehr", "wie-komme-ich-auf-die-whitelist", "was-ist-metagaming"],
+    body: `Schön, dass du den Weg zu uns gefunden hast! Die Einreise ist **entspannter, als du denkst**. Sie hilft uns dabei, die richtige Community aufzubauen und unpassende Spieler wie Trolle oder Leute ohne RP-Interesse vorab herauszufiltern.
+
+## Das solltest du vorher erledigen
+
+### 1. Deinen Charakter zum Leben erwecken
+
+Bei uns spielst du nicht dich selbst, sondern eine eigene Figur. Überleg dir vorab: Wer ist dein Charakter, woher kommt er und was treibt ihn an? Eine durchdachte Hintergrundgeschichte macht den Unterschied zum echten RP-Erlebnis.
+
+### 2. Tastenbelegung checken
+
+Wirf vorher einen Blick in die Tastenbelegung im Discord, damit du im Spiel nicht nach Tasten suchen musst.
+
+### 3. Das Regelwerk verinnerlichen
+
+Lies unbedingt das [Regelwerk](https://nordverkehr.xyz/regeln). Bei uns gilt: **Rolle spielen statt OOC quatschen.** Auch die **komplette Einreise findet IC (In Character) statt** – also direkt im RP, von der ersten Sekunde an.
+
+### 4. Regeländerungen im Blick behalten
+
+Das Regelwerk entwickelt sich weiter. Änderungen kündigen wir im Discord an – schau dort regelmäßig rein.
+
+### 5. Unsere Werte kennenlernen
+
+Was Nordverkehr ausmacht und wofür wir als Server stehen, findest du im Discord. Schau kurz rein, dann weißt du, worauf es uns ankommt.
+
+## So läuft deine Einreise ab
+
+Kein Interview, keine Fangfragen – deine Einreise ist **reines RP**. Spiel deinen Charakter, lass dich auf neue Situationen ein und zeig uns, dass du Lust hast, dich in unsere Welt einzufinden. Bleib entspannt und in deiner Rolle – der Rest ergibt sich von selbst.
+
+Viel Erfolg – wir sehen uns in Hamburg!`,
+  },
+  {
+    slug: "fivem-profiler-aufnahme",
+    title: "FiveM-Profiler-Aufnahme erstellen",
+    summary: "Lags oder FPS-Einbrüche? Mit einer Profiler-Aufnahme sieht das Team, was bei dir bremst.",
+    category: "technik-verbindung",
+    tags: ["profiler", "lag", "fps", "ruckeln", "performance", "profiler json"],
+    related: ["grafik-einstellungen-fuer-mehr-fps", "fivem-cache-loeschen", "fivem-startet-nicht"],
+    body: `Wenn du Lags oder FPS-Einbrüche hast, hilft dem Team eine **Profiler-Aufnahme**. Damit sehen wir genau, welche Skripte bei dir Leistung fressen.
+
+## 1. FiveM im Beta-Modus starten
+
+1. FiveM öffnen, oben rechts auf das **Zahnrad** (Einstellungen) klicken.
+2. Unter **Game** den **Update Channel** auf **Beta** setzen.
+3. FiveM neu starten und auf den Server joinen.
+
+## 2. Konsole öffnen und Aufnahme starten
+
+1. Drück **F8**, um die Client-Konsole zu öffnen.
+2. Gib diesen Befehl ein:
+
+\`\`\`
+profiler record 1500
+\`\`\`
+
+Damit werden die nächsten 1500 Frames aufgezeichnet.
+
+> Nimm die Aufnahme dort auf, wo das Problem auftritt – also genau dann, wenn es laggt oder die FPS einbrechen.
+
+## 3. Aufnahme als Datei speichern
+
+Wenn die Aufnahme fertig ist, gib in der F8-Konsole ein:
+
+\`\`\`
+profiler saveJSON profilerNV
+\`\`\`
+
+## 4. Datei finden
+
+Die Datei liegt im FiveM-Ordner. Drück **Windows + R**, füg diesen Pfad ein und bestätige mit Enter:
+
+\`\`\`
+%localappdata%\\FiveM\\FiveM.app\\citizen\\profilerNV
+\`\`\`
+
+## 5. Datei ans Team schicken
+
+1. Pack die Datei als **.zip**, sie ist oft recht groß.
+2. Lade die ZIP-Datei bei einem Datei-Dienst hoch (z. B. Google Drive oder OneDrive) und erstell einen Freigabe-Link.
+3. Mach ein [Ticket in der Kategorie Technik](/tickets/neu) auf und schreib den Link in deine Nachricht. Erwähn kurz, wann und wo das Problem auftritt.
+
+Im Portal kannst du nur Bilder direkt hochladen – deshalb der Umweg über den Link.`,
+  },
+  {
+    slug: "cfx-identifier-wechseln",
+    title: "CFX.re-Identifier wechseln",
+    summary: "Hat sich deine license nach einem PC-Reset geändert? So stellst du die richtige Identität wieder ein.",
+    category: "technik-verbindung",
+    tags: ["identifier", "license", "cfx", "identitaet", "pc reset", "charakter weg"],
+    related: ["mit-dem-server-verbinden", "fivem-startet-nicht"],
+    body: `Durch das CFX.re-Sicherheitsupdate und einen PC-Reset kann sich dein **license-Identifier** ändern. Dann wirkt es so, als wäre dein Fortschritt weg – dein Charakter hängt aber an der alten Identität. So wechselst du zurück:
+
+## Anleitung
+
+1. FiveM starten.
+2. Oben rechts auf das **Zahnrad** (Einstellungen) klicken.
+3. Zum Reiter **Account** wechseln.
+4. Unter **Linked Identities** bzw. **Default Identity** auf **Change Default** klicken und bei der gewünschten Identität **Set as default** wählen.
+5. FiveM neu starten.
+
+Die richtige Identität erkennst du meist am Datum unter **Last active** – das ist die, mit der du zuletzt bei uns gespielt hast.
+
+## Hinweis
+
+Die Option wird nur angezeigt, wenn deinem CFX.re-Konto **mehrere Identitäten** zugeordnet sind. Fehlt sie, lässt sich der Identifier nicht selbst wechseln. Mach dann ein [Ticket in der Kategorie Technik](/tickets/neu) auf – und schick deine license-IDs nie öffentlich in Kanäle.`,
+  },
+  {
+    slug: "grafik-einstellungen-fuer-mehr-fps",
+    title: "Grafik-Einstellungen für mehr FPS",
+    summary: "Mit diesen GTA-Grafikeinstellungen holst du auf dem RP-Server spürbar mehr FPS raus.",
+    category: "technik-verbindung",
+    tags: ["fps", "grafik", "einstellungen", "ruckeln", "performance", "lag"],
+    related: ["fix-fuer-textur-bugs", "fivem-profiler-aufnahme", "fivem-cache-loeschen"],
+    body: `Auf einem RP-Server brauchst du keine Grafik auf Anschlag. Mit diesen Einstellungen holst du spürbar mehr FPS raus. Zu finden unter **Einstellungen → Grafik** bzw. **Erweiterte Grafik**.
+
+## Die wichtigsten Einstellungen
+
+| Einstellung | Empfehlung | Warum |
+| --- | --- | --- |
+| Erweiterte Darstellungsdistanz | **0** | Rendert weit entfernte Objekte. Kostet viel CPU. |
+| Erweiterte Schattendistanz | **0** | Weit entfernte Schatten kosten CPU- und GPU-Leistung. |
+| Bevölkerungsdichte & -vielfalt | **0** | Weniger NPCs und Verkehr – auf RP-Servern nicht nötig. |
+| Grasqualität | **Normal** | Verringert die CPU-Last deutlich. |
+| Schattenqualität | **Normal** | Guter Kompromiss zwischen Optik und Leistung. |
+| Renderauflösung | **native Auflösung** | z. B. 1920×1080. Bei GPU-Limit kann weniger mehr FPS bringen. |
+| Erweitertes Texturbudget | **40–60 %** | Auf 0 % laden Texturen nicht richtig, siehe [Textur-Fix](/hilfe/technik-verbindung/fix-fuer-textur-bugs). Bei wenig VRAM eher 40 %. |
+| VSync | **Aus** | Weniger Input-Lag, oft mehr FPS. Nur bei starkem Tearing einschalten. |
+
+## Immer noch Ruckler?
+
+- [Cache leeren](/hilfe/technik-verbindung/fivem-cache-loeschen) – hilft oft nach Updates.
+- Läuft es nur an bestimmten Orten schlecht, schick uns eine [Profiler-Aufnahme](/hilfe/technik-verbindung/fivem-profiler-aufnahme).`,
+  },
+  {
+    slug: "fix-fuer-textur-bugs",
+    title: "Texturen laden nicht richtig? So behebst du's",
+    summary: "Fehlende Straßen, weiße Flächen, Löcher in der Map? Zwei Grafik-Einstellungen lösen fast alle Textur-Bugs.",
+    category: "technik-verbindung",
+    tags: ["textur", "texturen laden nicht", "map bug", "texturbudget", "weisse flaechen", "texture loss"],
+    related: ["fivem-cache-loeschen", "grafik-einstellungen-fuer-mehr-fps"],
+    body: `Hast du Probleme mit **nicht ladenden Texturen** – fehlende Straßen, weiße oder verwaschene Flächen, Gebäude ohne Details oder Löcher in der Map? Dann liegt es fast immer an zwei Grafik-Einstellungen.
+
+Beide findest du unter **Einstellungen → Erweiterte Grafik**.
+
+## 1. Erweitertes Texturbudget auf 40–60 %
+
+Das ist der häufigste Grund. Steht der Regler **Erweitertes Texturbudget** (englisch: *Extended Texture Budget*) auf **0 %**, hat das Spiel zu wenig Platz für Texturen: Boden, Hänge und Gebäude bleiben weiß oder grau, Details fehlen.
+
+- **0 % – falsch!** Texturen laden nicht oder verschwinden.
+- **40–60 % – empfohlen.** Alles lädt sauber, ohne die Grafikkarte zu überlasten.
+
+![Erweitertes Texturbudget: 0 % ist falsch, 40–60 % empfohlen](/hilfe/textur-budget.webp)
+
+Hast du eine Grafikkarte mit wenig Videospeicher (4 GB oder weniger), nimm eher **40 %**.
+
+## 2. Erweiterte Darstellungsdistanz auf 0
+
+Setz die **Erweiterte Darstellungsdistanz auf 0** (Regler ganz nach links). Weit entfernte Objekte belasten sonst das Laden der Texturen in deiner Nähe.
+
+![Erweiterte Grafik: Erweiterte Darstellungsdistanz auf 0 stellen](/hilfe/textur-darstellungsdistanz.webp)
+
+## 3. Spiel neu starten
+
+Starte das Spiel einmal **komplett** neu – nicht nur neu verbinden. Erst dann greifen die Einstellungen richtig.
+
+## Fertig!
+
+Danach sollten die Texturen auf Nordverkehr wieder sauber laden.
+
+## Immer noch Probleme?
+
+- [FiveM-Cache leeren](/hilfe/technik-verbindung/fivem-cache-loeschen) – das hilft bei hartnäckigen Fällen.
+- Treten die Bugs immer an derselben Stelle auf, mach ein [Ticket in der Kategorie Bug](/tickets/neu) auf und schreib dazu, **wo** genau – am besten mit Screenshot.`,
+  },
+  {
+    slug: "fivem-cache-loeschen",
+    title: "FiveM-Cache löschen",
+    summary: "Ladefehler, fehlende Texturen oder Abbrüche? So leerst du den FiveM-Cache in einer Minute.",
+    category: "technik-verbindung",
+    tags: ["cache", "cache leeren", "cache loeschen", "ladefehler", "texturen", "kesch"],
+    related: ["fix-fuer-textur-bugs", "fivem-startet-nicht", "mit-dem-server-verbinden"],
+    body: `Das Leeren des FiveM-Caches hilft bei **Ladefehlern, fehlenden Texturen oder Bugs**. So geht's:
+
+## 1. Cache-Ordner öffnen
+
+1. Schließ FiveM komplett.
+2. Drück **Windows + R**, um das Ausführen-Fenster zu öffnen.
+3. Gib diesen Pfad ein und bestätige mit Enter:
+
+\`\`\`
+%LOCALAPPDATA%\\FiveM\\FiveM.app\\data
+\`\`\`
+
+![Ausführen-Fenster mit dem Pfad zum FiveM-Cache](/hilfe/cache-ausfuehren.webp)
+
+## 2. Inhalt löschen
+
+1. Markiere **alle Dateien und Ordner** (Strg + A).
+2. Lösch sie (Entf).
+
+![Ordner im FiveM-Cache: cache, game-storage, nui-storage, server-cache, server-cache-priv](/hilfe/cache-ordner.webp)
+
+> Tipp: Wenn du nicht alles neu herunterladen willst, lass den Ordner **game-storage** stehen und lösch nur **cache**, **server-cache** und **server-cache-priv**. Hilft das nicht, lösch beim nächsten Mal alles.
+
+## 3. FiveM neu starten
+
+Starte FiveM neu – die benötigten Dateien werden automatisch neu erstellt.
+
+## Wann sollte man den Cache löschen?
+
+- Bei **fehlenden Texturen** oder **Verbindungsabbrüchen**
+- Nach größeren Server-Updates, wenn etwas komisch aussieht
+- Zur Wartung etwa **alle 4–6 Wochen**
+
+## Hinweis
+
+Beim ersten Start und Verbinden werden alle Ressourcen neu geladen. Das dauert **einmalig etwas länger** – das ist normal.
+
+## Fertig!
+
+Dein Cache ist bereinigt und du kannst Nordverkehr wieder ohne Probleme genießen.`,
+  },
+  {
+    slug: "teamspeak-join-und-leave-sounds-abschalten",
+    title: "TeamSpeak: Join- & Leave-Sounds abschalten",
+    summary: "Die ständigen Sounds beim Betreten und Verlassen von Channels nerven? In vier Klicks sind sie weg.",
+    category: "teamspeak-saltychat",
+    tags: ["teamspeak", "sounds", "join sound", "leave sound", "ts3", "toene"],
+    related: ["teamspeak-3-einrichten", "saltychat-verbindet-nicht"],
+    body: `Die ständigen Sounds beim Betreten und Verlassen von Channels können auf Dauer ganz schön stören – gerade mit SaltyChat, wo ständig gewechselt wird. Zum Glück lassen sie sich mit wenigen Klicks abschalten.
+
+## Anleitung
+
+1. **TeamSpeak öffnen** – starte deinen TeamSpeak-Client ganz normal.
+2. **Optionen öffnen** – oben in der Menüleiste auf **Extras** klicken und **Optionen** wählen.
+3. **Sounds deaktivieren** – links den Reiter **Meldungen** wählen. Unter **Sound Pack** auf **Sounds deactivated** stellen.
+4. **Speichern** – mit **OK** bestätigen und TeamSpeak neu starten.
+
+![TeamSpeak-Optionen: Reiter Meldungen, Sound Pack auf „Sounds deactivated“](/hilfe/teamspeak-sounds.webp)
+
+## Das war's schon!
+
+Die nervigen Join- und Leave-Geräusche gehören damit der Vergangenheit an.
+
+> Tipp: Willst du später doch wieder Sounds, geh den gleichen Weg zurück und wähl ein anderes Sound Pack.`,
   },
 ];

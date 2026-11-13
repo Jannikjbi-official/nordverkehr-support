@@ -17,7 +17,10 @@ export async function ensureBaseData(db: PrismaClient, log: (m: string) => void 
 
   let articles = 0;
   const now = new Date();
+  // Bereits einmal angelegte Standard-Artikel nie erneut anlegen (falls das Team sie gelöscht hat)
+  const seeded = await seededArticleSlugs(db);
   for (const a of SEED_ARTICLES) {
+    if (seeded.has(a.slug)) continue;
     if (await db.helpArticle.findUnique({ where: { slug: a.slug } })) continue;
     const categoryId = catIds.get(a.category);
     if (!categoryId) continue;
@@ -35,6 +38,11 @@ export async function ensureBaseData(db: PrismaClient, log: (m: string) => void 
     const ids = a.related.map((s) => bySlug.get(s)).filter((x): x is string => !!x);
     if (ids.length) await db.helpArticle.update({ where: { id: row.id }, data: { relatedIds: ids } });
   }
+  await db.setting.upsert({
+    where: { key: SEEDED_ARTICLES_KEY },
+    create: { key: SEEDED_ARTICLES_KEY, value: SEED_ARTICLES.map((a) => a.slug) },
+    update: { value: [...new Set([...seeded, ...SEED_ARTICLES.map((a) => a.slug)])] },
+  });
   log(`Artikel neu: ${articles}`);
 
   let types = 0;
@@ -73,12 +81,29 @@ export async function ensureBaseData(db: PrismaClient, log: (m: string) => void 
   }
 }
 
+const SEEDED_ARTICLES_KEY = "seed.articleSlugs";
+
+async function seededArticleSlugs(db: PrismaClient): Promise<Set<string>> {
+  const row = await db.setting.findUnique({ where: { key: SEEDED_ARTICLES_KEY } });
+  return new Set(Array.isArray(row?.value) ? (row.value as unknown[]).filter((x): x is string => typeof x === "string") : []);
+}
+
+/** Gibt es neue Standard-Artikel, die noch nie angelegt wurden? (z. B. nach einem Update) */
+async function hasNewSeedArticles(db: PrismaClient) {
+  const seeded = await seededArticleSlugs(db);
+  const missing = SEED_ARTICLES.filter((a) => !seeded.has(a.slug)).map((a) => a.slug);
+  if (!missing.length) return false;
+  // Ältere Datenbanken ohne Merkliste: vorhandene Artikel zählen als angelegt
+  const existing = await db.helpArticle.count({ where: { slug: { in: missing } } });
+  return existing < missing.length || seeded.size === 0;
+}
+
 let ensured = false;
 
 /** Ersteinrichtung bei leerer Datenbank (einmal pro Instanz geprüft) */
 export async function ensureBaseDataOnce(db: PrismaClient) {
   if (ensured) return;
   ensured = true;
-  if ((await db.helpCategory.count()) > 0 && (await db.requestType.count()) > 0) return;
+  if ((await db.helpCategory.count()) > 0 && (await db.requestType.count()) > 0 && !(await hasNewSeedArticles(db))) return;
   await ensureBaseData(db, (m) => console.log("[setup]", m));
 }
