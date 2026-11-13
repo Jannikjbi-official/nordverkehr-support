@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { Container, formatDay } from "@/components/ui";
 import { Markdown, extractToc } from "@/components/Markdown";
 import { ArticleFeedback } from "@/components/help/ArticleFeedback";
+import { SHOP_URL, shopLegalLinks } from "@/lib/public-urls";
 
 type Props = { params: Promise<{ kategorie: string; artikel: string }> };
 
@@ -47,6 +48,26 @@ export default async function ArticlePage({ params }: Props) {
           <p className="nv-mono mt-4">Zuletzt aktualisiert: {formatDay(a.contentUpdatedAt)}</p>
           <div className="nv-divider my-8" />
           <Markdown source={a.body} />
+          {a.category.slug === "shop-zahlungen" && SHOP_URL && (
+            <aside className="mt-8 nv-card p-5 text-sm" aria-label="Shop-Bedingungen">
+              <p className="nv-mono mb-2">Shop-Bedingungen (Tebex)</p>
+              <p className="text-muted">Verkauf und Zahlung laufen über Tebex. Dort gelten zusätzlich:</p>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                <li>
+                  <a href={SHOP_URL} target="_blank" rel="noopener noreferrer" className="nv-btn nv-btn-ghost nv-btn-sm">
+                    Zum Shop
+                  </a>
+                </li>
+                {shopLegalLinks(SHOP_URL).map((l) => (
+                  <li key={l.href}>
+                    <a href={l.href} target="_blank" rel="noopener noreferrer" className="nv-btn nv-btn-quiet nv-btn-sm">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
 
           <div className="mt-12">
             <ArticleFeedback articleId={a.id} />

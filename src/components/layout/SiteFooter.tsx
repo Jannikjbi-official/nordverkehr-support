@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, DiscordLogo } from "@phosphor-icons/react/ssr";
 import { hostOf, publicEnv } from "@/lib/env";
-import { IMPRINT_URL, SOURCE_URL } from "@/lib/public-urls";
+import { IMPRINT_URL, SHOP_URL, SOURCE_URL, shopLegalLinks } from "@/lib/public-urls";
 
 export function SiteFooter() {
   return (
@@ -34,12 +34,24 @@ export function SiteFooter() {
             <a className="block text-fg-2 hover:text-fg" href={publicEnv.mainSiteUrl}>Hauptseite</a>
             <a className="block text-fg-2 hover:text-fg" href={publicEnv.rulesUrl}>Regelwerk</a>
             <a className="block text-fg-2 hover:text-fg" href={publicEnv.bewerbungUrl}>Bewerbungsportal</a>
+            {SHOP_URL && (
+              <a className="block text-fg-2 hover:text-fg" href={SHOP_URL} target="_blank" rel="noopener noreferrer">
+                Shop
+              </a>
+            )}
             <a className="block text-fg-2 hover:text-fg" href={publicEnv.discordInvite} target="_blank" rel="noopener noreferrer">Discord</a>
           </nav>
           <nav aria-label="Rechtliches" className="space-y-2 text-sm">
             <p className="nv-mono mb-3">Rechtliches</p>
             <a className="block text-fg-2 hover:text-fg" href={IMPRINT_URL}>Impressum</a>
             <Link className="block text-fg-2 hover:text-fg" href="/datenschutz">Datenschutz</Link>
+            <Link className="block text-fg-2 hover:text-fg" href="/hilfe/shop-zahlungen/rueckgaberichtlinie">Rückgaberichtlinie</Link>
+            {SHOP_URL &&
+              shopLegalLinks(SHOP_URL).map((l) => (
+                <a key={l.href} className="block text-fg-2 hover:text-fg" href={l.href} target="_blank" rel="noopener noreferrer">
+                  {l.label}
+                </a>
+              ))}
             <a className="block text-fg-2 hover:text-fg" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">Quellcode (AGPL)</a>
           </nav>
         </div>

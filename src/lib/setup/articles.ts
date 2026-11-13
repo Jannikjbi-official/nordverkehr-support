@@ -932,4 +932,74 @@ Die nervigen Join- und Leave-Geräusche gehören damit der Vergangenheit an.
 
 > Tipp: Willst du später doch wieder Sounds, geh den gleichen Weg zurück und wähl ein anderes Sound Pack.`,
   },
+  // ─── Shop (Tebex) ───
+  {
+    slug: "rueckgaberichtlinie",
+    title: "Rückgaberichtlinie (Shop)",
+    summary: "Alle Zahlungen im Shop sind endgültig. Was das bedeutet und was du bei Problemen mit einem Kauf tust.",
+    category: "shop-zahlungen",
+    tags: ["rueckgabe", "erstattung", "refund", "shop", "tebex", "paypal"],
+    related: ["kauf-nicht-angekommen", "ticket-oder-antrag"],
+    body: `Unser Shop läuft über **Tebex**. Bitte lies dir die Rückgaberichtlinie vor dem Kauf durch.
+
+## Rückgaberichtlinie
+
+Alle Zahlungen sind **endgültig und nicht erstattungsfähig**. Der Versuch einer Zahlungsrückgabe oder das Eröffnen eines PayPal-Disputes führt zu einem **permanenten und unwiderruflichen Ausschluss** von all unseren Servern sowie anderen FiveM-Shops.
+
+Die Käufe können direkt nach dem Erwerb im Spiel eingelöst werden. Detaillierte Informationen zu den einzelnen Artikeln findest du in den jeweiligen Beschreibungen im Shop.
+
+Bei Problemen öffne bitte ein [Ticket in der Kategorie Shop & Zahlung](/tickets/neu?kategorie=shop) – zusammen mit einem **Kaufnachweis**, damit wir dein Anliegen bearbeiten können.
+
+![Problem mit einem Kauf: Ticket mit Kaufnachweis statt Rückbuchung](/hilfe/shop-rueckgabe.webp)
+
+## Was zählt als Kaufnachweis?
+
+- Die **Transaktions-ID** aus der Kaufbestätigung von Tebex (beginnt meist mit „tbx-“)
+- Ein **Screenshot der Bestätigungs-Mail**, auf dem Artikel, Datum und Transaktions-ID zu sehen sind
+
+Zahlungsdaten wie Kartennummer oder PayPal-Passwort brauchen wir **nie** – schick sie niemandem.
+
+## Wer sieht mein Ticket?
+
+Tickets in der Kategorie Shop & Zahlung sehen nur Moderation und Leitung, nicht das ganze Team.
+
+## Nicht verwechseln: Rückerstattung im Spiel
+
+Der Antrag **Rückerstattung** ist für Ingame-Verluste durch Bugs (Items, Geld im Spiel) – nicht für echte Zahlungen im Shop.
+
+## AGB, Impressum und Datenschutz des Shops
+
+Verkauf und Zahlung wickelt **Tebex** für uns ab. Deren AGB, Impressum und Datenschutzerklärung findest du unten auf jeder Shop-Seite – und, sobald der Shop online ist, auch hier im Footer.`,
+  },
+  {
+    slug: "kauf-nicht-angekommen",
+    title: "Kauf nicht angekommen?",
+    summary: "Du hast im Shop gekauft, aber im Spiel ist nichts angekommen? So gehst du vor.",
+    category: "shop-zahlungen",
+    tags: ["kauf", "shop", "tebex", "nicht angekommen", "paket", "transaktion"],
+    related: ["rueckgaberichtlinie", "cfx-identifier-wechseln"],
+    body: `Meistens ist ein Kauf nach ein paar Minuten da. Wenn nicht, geh diese Schritte durch.
+
+![Kauf nicht angekommen: vier Schritte](/hilfe/shop-kauf-fehlt.webp)
+
+## 1. Kurz warten und neu verbinden
+
+Käufe werden in der Regel gutgeschrieben, sobald du (wieder) auf dem Server bist. Verbinde dich einmal neu.
+
+## 2. Richtiger Account?
+
+Der Kauf hängt an der Identität, mit der du im Shop eingeloggt warst. Spielst du mit einer anderen FiveM-/CFX-Identität, kommt er nicht an. Wie du die Identität wechselst: [CFX.re-Identifier wechseln](/hilfe/technik-verbindung/cfx-identifier-wechseln).
+
+## 3. Kaufbestätigung raussuchen
+
+Tebex schickt dir nach dem Kauf eine E-Mail. Darin stehen die **Transaktions-ID** (beginnt meist mit „tbx-“), der Artikel und das Datum.
+
+## 4. Ticket öffnen
+
+Öffne ein [Ticket in der Kategorie Shop & Zahlung](/tickets/neu?kategorie=shop). Gib die Transaktions-ID, den Artikel, das Kaufdatum und deinen Ingame-Namen an und häng einen Screenshot der Bestätigung an.
+
+## Bitte keine Rückbuchung
+
+Eine Rückbuchung oder ein PayPal-Dispute führt zum dauerhaften Ausschluss – siehe [Rückgaberichtlinie](/hilfe/shop-zahlungen/rueckgaberichtlinie). Über ein Ticket finden wir fast immer eine Lösung.`,
+  },
 ];

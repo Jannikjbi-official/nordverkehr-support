@@ -230,6 +230,7 @@ git push -u origin main
 | `TEAMSPEAK_WEBQUERY_URL` / `TEAMSPEAK_WEBQUERY_KEY` | TeamSpeak-Status inkl. Nutzerzahl (WebQuery, TS3 ≥ 3.12) | TeamSpeak-Server-Konfiguration | optional |
 | `TEAMSPEAK_HOST` / `TEAMSPEAK_PORT` | TeamSpeak nur als „erreichbar ja/nein“ (TCP) | Server-Adresse, Port z. B. 10011 | optional |
 | `ANTHROPIC_API_KEY` | KI-Entwürfe (kostenpflichtig) | [Claude Console](https://platform.claude.com) → API Keys | optional |
+| `NEXT_PUBLIC_SHOP_URL` | Tebex-Shop, z. B. `https://nordverkehr.tebex.io` – zeigt Shop, AGB, Impressum und Datenschutz von Tebex im Footer und in den Shop-Artikeln | Tebex-Dashboard | optional |
 | `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | Nachrichten erscheinen **sofort** beim Gegenüber (Push) | [pusher.com](https://pusher.com) → Channels → App anlegen (Cluster `eu`) → App Keys | empfohlen |
 | `AI_MODEL_DEFAULT` / `AI_MODEL_FAST` | Modelle | Standard `claude-sonnet-5-5` / `claude-haiku-5-5` | optional |
 | `DEV_LOGIN` | Dev-Login ohne Discord – **nur lokal** | `true` | nie in Produktion |

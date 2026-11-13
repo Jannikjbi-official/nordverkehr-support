@@ -15,6 +15,7 @@ export const HELP_CATEGORIES = [
   { slug: "fraktionen-jobs", title: "Fraktionen & Jobs", description: "Wie du reinkommst – und wieder raus.", icon: "briefcase" },
   { slug: "banns-antraege", title: "Banns & Anträge", description: "Entbannung, Einspruch und wie das Team entscheidet.", icon: "gavel" },
   { slug: "account-daten", title: "Account & Daten", description: "Login, Datenschutz, Export und Löschung.", icon: "user" },
+  { slug: "shop-zahlungen", title: "Shop & Zahlungen", description: "Käufe im Tebex-Shop, Rückgaberichtlinie und Hilfe bei Problemen.", icon: "shop" },
 ];
 
 export interface SeedRequestType {

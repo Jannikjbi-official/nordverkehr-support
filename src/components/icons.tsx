@@ -15,6 +15,7 @@ import {
   Megaphone,
   Plug,
   Scales,
+  ShoppingCartSimple,
   Skull,
   UserCircle,
   Wrench,
@@ -41,6 +42,7 @@ const ICONS: Record<string, Icon> = {
   flag: Flag,
   file: FileText,
   lifebuoy: Lifebuoy,
+  shop: ShoppingCartSimple,
 };
 
 export const ICON_KEYS = Object.keys(ICONS);

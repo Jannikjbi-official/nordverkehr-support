@@ -121,6 +121,27 @@ export const TICKET_CATEGORIES: TicketCategory[] = [
     discordFields: [{ key: "rule", label: "Um welche Regel geht es? (optional)", style: 1, required: false, max: 120 }],
   },
   {
+    key: "shop",
+    label: "Shop & Zahlung",
+    short: "Shop",
+    description: "Kauf im Tebex-Shop nicht angekommen oder Fragen zu einer Zahlung.",
+    icon: "shop",
+    // Zahlungsdaten: nur Moderation/Leitung
+    sensitivity: "MOD_ONLY",
+    helpCategory: "shop-zahlungen",
+    fields: [
+      { key: "transaction", label: "Transaktions-ID (Tebex)", type: "text", required: true, help: "Steht in der Kaufbestätigung von Tebex per E-Mail (beginnt meist mit „tbx-“).", placeholder: "tbx-…", max: 80 },
+      { key: "item", label: "Gekaufter Artikel", type: "text", required: true, max: 160 },
+      { key: "date", label: "Kaufdatum", type: "date", required: true },
+      { key: "ingame", label: "Ingame-Name", type: "text", required: true, help: "Der Charakter, der den Kauf bekommen soll.", max: 80 },
+    ],
+    discordFields: [
+      { key: "transaction", label: "Transaktions-ID (Tebex, tbx-…)", style: 1, required: true, max: 80 },
+      { key: "item", label: "Gekaufter Artikel", style: 1, required: true, max: 160 },
+      { key: "ingame", label: "Ingame-Name", style: 1, required: true, max: 80 },
+    ],
+  },
+  {
     key: "sonstiges",
     label: "Sonstiges",
     short: "Sonstiges",
