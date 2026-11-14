@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, startTransition, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { MessageKind } from "@prisma/client";
 import { MessageList, type ListMessage } from "@/components/tickets/MessageList";
@@ -33,24 +33,17 @@ function getPusher(): Promise<PusherLike | null> {
   return pusherPromise;
 }
 
-// ─── Polling ──────────────────────────────────────────────────
+// ─── Push statt Nachfragen ────────────────────────────────────
 
 /**
- * Live-Aktualisierung: Mit Pusher kommt ein Signal, sobald sich etwas ändert
- * (sofort). Zusätzlich bzw. ohne Pusher fragt die Seite die Live-Version ab
- * (nur bei sichtbarem Tab): 3 s nach Aktivität, nach 1 Min. Ruhe 8 s, nach
- * 5 Min. 20 s – mit Push nur alle 30 s als Sicherheitsnetz.
+ * Keine Hintergrund-Abfragen: Die Seite fragt NIE von selbst beim Server nach.
+ * Ist Pusher eingerichtet, kommt bei Änderungen ein Signal (über Pusher, nicht
+ * über Vercel) und die Seite lädt einmal nach. Ohne Pusher sieht man Neues beim
+ * nächsten Seitenaufruf.
  */
-export function useLiveRefresh(query: string, version: string, channels: string[] = []) {
+export function usePushRefresh(channels: string[] = []) {
   const router = useRouter();
-  const current = useRef(version);
-  const pushed = useRef(false);
   const channelKey = channels.join(",");
-  useEffect(() => {
-    current.current = version;
-  }, [version]);
-
-  // Push: sofort neu laden, sobald ein Signal kommt (mehrere Signale kurz hintereinander = ein Neuladen)
   useEffect(() => {
     if (!channelKey) return;
     let cancelled = false;
@@ -62,18 +55,12 @@ export function useLiveRefresh(query: string, version: string, channels: string[
         clearTimeout(throttle);
         throttle = setTimeout(() => startTransition(() => router.refresh()), 120);
       };
-      const onState = ({ current: state }: { current: string }) => {
-        pushed.current = state === "connected";
-      };
-      pushed.current = pusher.connection.state === "connected";
-      pusher.connection.bind("state_change", onState);
       const subs = channelKey.split(",").map((name) => {
         const ch = pusher.subscribe(name);
         ch.bind(LIVE_EVENT, onChange);
         return { name, ch };
       });
       cleanup = () => {
-        pusher.connection.unbind("state_change", onState);
         for (const { name, ch } of subs) {
           ch.unbind(LIVE_EVENT, onChange);
           pusher.unsubscribe(name);
@@ -86,62 +73,11 @@ export function useLiveRefresh(query: string, version: string, channels: string[
       cleanup();
     };
   }, [channelKey, router]);
-
-  useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let lastChange = Date.now();
-
-    const schedule = () => {
-      if (stopped) return;
-      const idle = Date.now() - lastChange;
-      // Mit Push nur noch selten als Sicherheitsnetz nachfragen
-      const delay = pushed.current ? 30_000 : idle < 60_000 ? 3_000 : idle < 300_000 ? 8_000 : 20_000;
-      timer = setTimeout(tick, delay);
-    };
-    const tick = async () => {
-      if (stopped) return;
-      if (document.hidden) return schedule();
-      try {
-        const res = await fetch(`/api/live?${query}`, { cache: "no-store" });
-        if (res.status === 401 || res.status === 403 || res.status === 404) {
-          stopped = true;
-          return;
-        }
-        if (res.ok) {
-          const { v } = (await res.json()) as { v?: string };
-          if (v && v !== current.current) {
-            current.current = v;
-            lastChange = Date.now();
-            startTransition(() => router.refresh());
-          }
-        }
-      } catch {
-        // offline o. Ä. – beim nächsten Takt wieder
-      }
-      schedule();
-    };
-    const onVisible = () => {
-      if (document.hidden || stopped) return;
-      clearTimeout(timer);
-      lastChange = Date.now();
-      void tick();
-    };
-    schedule();
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
-  }, [query, router]);
 }
 
-/** Nur Polling, ohne Nachrichten (z. B. Team-Listen, Kanban) */
-export function LiveRefresh({ query, version, channels }: { query: string; version: string; channels?: string[] }) {
-  useLiveRefresh(query, version, channels);
+/** Nur Push (z. B. Team-Listen, Kanban) */
+export function LiveRefresh({ channels }: { channels?: string[] }) {
+  usePushRefresh(channels);
   return null;
 }
 
@@ -169,21 +105,9 @@ const LiveThreadContext = createContext<LiveThreadApi | null>(null);
 
 export const useLiveThread = () => useContext(LiveThreadContext);
 
-export function LiveThreadProvider({
-  query,
-  version,
-  viewerName,
-  channels,
-  children,
-}: {
-  query: string;
-  version: string;
-  viewerName: string;
-  channels?: string[];
-  children: ReactNode;
-}) {
+export function LiveThreadProvider({ viewerName, channels, children }: { viewerName: string; channels?: string[]; children: ReactNode }) {
   const [local, setLocal] = useState<LocalMessage[]>([]);
-  useLiveRefresh(query, version, channels);
+  usePushRefresh(channels);
 
   const send = useCallback<LiveThreadApi["send"]>(async ({ kind, body, attachmentCount = 0 }, run) => {
     const tempId = `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;

@@ -65,7 +65,7 @@ Vercel-Funktionen sind serverless – ein dauerhaft verbundener Discord-Bot (Gat
                                │  Seiten, Server Actions, API
  Discord (HTTP-Interaktionen) ─┤  /api/discord/interactions  ── Weiterleitung ──► bewerbung.nordverkehr.xyz
                                │  Outbox → Discord REST (DMs, Log)
-                               └─ Hintergrundarbeiten (Cron + gedrosselt bei Seitenaufrufen)
+                               └─ keine Hintergrund-Jobs: alles läuft nur auf Abruf
 ```
 
 | Richtung | Wie |
@@ -73,9 +73,9 @@ Vercel-Funktionen sind serverless – ein dauerhaft verbundener Discord-Bot (Gat
 | Knöpfe, Formulare, Slash-Befehle | HTTP-Interactions-Endpoint auf Vercel (Signatur geprüft) |
 | Web → Discord | Outbox: Nachricht wird gespeichert und sofort per REST gepostet; Wiederholung mit Backoff |
 | Discord → Web | nur über Panel/Formular (neues Ticket) und Bewertungs-Knöpfe – Antworten laufen ausschließlich im Portal |
-| Auto-Close, Erinnerungen, Löschfristen | `/api/cron/housekeeping` (Vercel Cron) **und** gedrosselt bei normalen Seitenaufrufen (höchstens alle 5 Min., mit Sperre in der DB) |
+| Auto-Close, Erinnerungen, Löschfristen | **nur auf Abruf:** wenn das Team die Team-Übersicht öffnet (höchstens alle 30 Min., Sperre in der DB) oder per Knopf in der Verwaltung – keine Cron-Jobs, keine Arbeit bei normalen Seitenaufrufen |
 
-Was ohne Worker anders ist: Rollenänderungen greifen nach höchstens 60 s (Cache), nicht sofort.
+Was ohne Worker anders ist: Rollenänderungen greifen nach höchstens 5 Minuten (Cache `ROLE_CACHE_TTL_SECONDS`), nicht sofort. Die Prüfung passiert nur beim Seitenaufruf selbst, nie im Hintergrund.
 
 ---
 
@@ -161,9 +161,7 @@ git push -u origin main
 3. **Node.js-Version:** *Settings → Build and Deployment → Node.js Version* auf **22.x** (oder höher) stellen (`engines` in `package.json`: `22.x`).
 4. Alle [Umgebungsvariablen](#umgebungsvariablen) unter *Settings → Environment Variables* eintragen (Production; `DEV_LOGIN` **nicht**).
 5. Deployen. Jeder Push auf `main` deployt automatisch, Pull Requests bekommen Preview-Deployments.
-6. **Cron:** `vercel.json` ruft `/api/cron/housekeeping` zweimal täglich auf (Vercel schickt `Authorization: Bearer $CRON_SECRET`). Auf dem **Hobby-Plan** laufen Cron-Jobs höchstens einmal täglich pro Eintrag – reicht, weil die Hintergrundarbeiten zusätzlich bei Seitenaufrufen laufen. Für pünktlichere Erinnerungen:
-   - **Pro-Plan:** Schedule auf `*/10 * * * *` ändern, oder
-   - **kostenloser externer Scheduler** (z. B. cron-job.org): alle 10 Minuten `GET https://support.nordverkehr.xyz/api/cron/housekeeping` mit Header `Authorization: Bearer <CRON_SECRET>`.
+6. **Keine Cron-Jobs:** Das Portal arbeitet nur auf Abruf (siehe [Hintergrundarbeiten](#hintergrundarbeiten)). `/api/cron/housekeeping` gibt es weiterhin – mit `Authorization: Bearer <CRON_SECRET>` kann man es bei Bedarf manuell oder über einen externen Scheduler aufrufen.
 
 ### 4. Domain `support.nordverkehr.xyz`
 
@@ -241,7 +239,7 @@ Im **Bewerbungsportal** zusätzlich: `DISCORD_INTERACTIONS_ROUTER_URL=https://su
 
 ## Rollen & Rechte
 
-Rollen kommen aus Discord und werden serverseitig geprüft (Bot, Cache 60 s, fail closed; Proxy + Prüfung in jeder Seite, Action und API).
+Rollen kommen aus Discord und werden serverseitig geprüft (Bot, Cache 5 Min., fail closed; Prüfung in jeder Seite, Action und API).
 
 | | Support | Moderation | Leitung |
 |---|:-:|:-:|:-:|
@@ -267,10 +265,10 @@ Eigene Nachrichten erscheinen beim Senden sofort. Damit sie auch **beim Gegenüb
 
 Einrichten (5 Minuten): auf pusher.com einen Account anlegen → *Channels* → *Create app* (Cluster **eu**) → *App Keys* → die vier Werte in Vercel als Umgebungsvariablen eintragen → neu deployen (die `NEXT_PUBLIC_…`-Werte werden beim Build eingebaut). Der kostenlose Plan (200.000 Nachrichten/Tag, 100 gleichzeitige Verbindungen) reicht für ein RP-Projekt locker. Alternativ selbst gehostet mit [Soketi](https://soketi.app) (`PUSHER_HOST` usw., siehe `.env.example`).
 
-Ohne Pusher fragen offene Seiten alle 3 s (bei Ruhe seltener, im Hintergrund-Tab gar nicht) nach Änderungen – funktioniert, aber mit 2–4 s Verzögerung.
+Ohne Pusher fragt keine Seite von selbst nach – Neues von anderen siehst du beim nächsten Seitenaufruf. (Bewusst so: keine Pings, keine Hintergrund-Abfragen auf Vercel.)
 
 ### Hintergrundarbeiten
-`/api/cron/housekeeping` erledigt: Outbox-Wiederholungen, Erinnerungen, Auto-Close, Schließen gelöster Tickets, Archivieren entschiedener Anträge und einmal täglich die Löschfristen. Zusätzlich anstoßbar unter *Einstellungen & Discord → Hintergrundarbeiten jetzt ausführen*.
+Es gibt **keine Hintergrund-Jobs** (keine Crons, keine Pings, keine Prüfungen bei normalen Seitenaufrufen). Die fälligen Aufgaben – Outbox-Wiederholungen, Erinnerungen, Auto-Close, Schließen gelöster Tickets, Archivieren entschiedener Anträge, einmal täglich die Löschfristen – laufen, wenn das Team die **Team-Übersicht** öffnet (höchstens alle 30 Min.) oder per Knopf unter *Einstellungen & Discord → Hintergrundarbeiten jetzt ausführen*. DMs gehen direkt beim Antworten raus; nur fehlgeschlagene werden später nachgeholt. Basisdaten (Kategorien, Artikel …) legt der **Build** an, nicht die laufende Seite.
 
 ### Brauchen wir einen Worker?
 **Nein.** Das Support-Center läuft komplett auf Vercel. Der Worker des Bewerbungsportals (falls ihr ihn betreibt) kann weiterlaufen – er arbeitet nur mit der Datenbank des Portals und berührt das Support-Center nicht; den Bot-Status („online“) setzt weiterhin nur er. Ein gemeinsamer Worker für beide Projekte wäre möglich, koppelt aber Deployments und Fehler beider Apps – nicht empfohlen.

@@ -123,9 +123,9 @@ async function hasNewSeedArticles(db: PrismaClient) {
 let ensured = false;
 
 /** Ersteinrichtung bei leerer Datenbank (einmal pro Instanz geprüft) */
-export async function ensureBaseDataOnce(db: PrismaClient) {
+export async function ensureBaseDataOnce(db: PrismaClient, log: (m: string) => void = (m) => console.log("[setup]", m)) {
   if (ensured) return;
   ensured = true;
   if ((await db.helpCategory.count()) > 0 && (await db.requestType.count()) > 0 && !(await hasNewSeedArticles(db)) && (await seedContentVersion(db)) >= SEED_CONTENT_VERSION) return;
-  await ensureBaseData(db, (m) => console.log("[setup]", m));
+  await ensureBaseData(db, log);
 }

@@ -32,11 +32,15 @@ export async function acquireLease(key: string, ms: number): Promise<boolean> {
 
 let lastLocalCheck = 0;
 
-/** Bei Seitenaufrufen: höchstens alle 5 Minuten (pro Instanz zusätzlich 60 s Ruhe) */
+/**
+ * Keine Hintergrund-Jobs: Erinnerungen, Auto-Schließen, DM-Nachzustellung und
+ * Löschfristen laufen nur, wenn das Team die Team-Übersicht öffnet – höchstens
+ * alle 30 Minuten – oder per Knopf in der Verwaltung.
+ */
 export async function scheduleHousekeeping() {
-  if (Date.now() - lastLocalCheck < 60_000) return;
+  if (Date.now() - lastLocalCheck < 5 * 60_000) return;
   lastLocalCheck = Date.now();
-  if (!(await acquireLease("housekeeping", 5 * 60_000))) return;
+  if (!(await acquireLease("housekeeping", 30 * 60_000))) return;
   const { after } = await import("next/server");
   after(() => runHousekeeping({ budgetMs: 20_000 }).catch((e) => console.error("[housekeeping]", e)));
 }

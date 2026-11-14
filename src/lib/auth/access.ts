@@ -86,22 +86,6 @@ export function isCacheFresh(checkedAt: Date | null, now: Date, ttlMs: number): 
   return age >= 0 && age < ttlMs;
 }
 
-/** Discord-Stand ist veraltet (TTL abgelaufen) und sollte neu geholt werden. */
-export function needsRefresh(subject: Pick<AccessState, "roleCheckedAt" | "banCheckedAt" | "inGuild">, config: Pick<RoleConfig, "ttlMs" | "banTtlMs">, now: Date) {
-  const rolesFresh = isCacheFresh(subject.roleCheckedAt, now, config.ttlMs);
-  const banFresh = isCacheFresh(subject.banCheckedAt, now, config.banTtlMs);
-  return !(rolesFresh && (banFresh || subject.inGuild));
-}
-
-/**
- * Darf ein veralteter Stand noch kurz ausgeliefert werden, während im
- * Hintergrund neu geprüft wird? Nur innerhalb von `staleMs` – danach wird
- * wieder blockierend bei Discord gefragt.
- */
-export function canServeStale(subject: Pick<AccessState, "roleCheckedAt" | "banCheckedAt" | "inGuild">, now: Date, staleMs: number) {
-  return isCacheFresh(subject.roleCheckedAt, now, staleMs) && (subject.inGuild || isCacheFresh(subject.banCheckedAt, now, staleMs));
-}
-
 export function withFlags(state: AccessState, source: Access["source"]): Access {
   return {
     ...state,

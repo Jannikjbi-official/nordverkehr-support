@@ -7,6 +7,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Ohne Rust-Engine (spart ~18 MB pro Server-Route auf Vercel);
+  // die Datenbank wird über den JavaScript-Treiber `pg` angesprochen.
+  previewFeatures = ["queryCompiler", "driverAdapters"]
+  engineType      = "client"
 }
 
 datasource db {

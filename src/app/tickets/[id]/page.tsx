@@ -7,9 +7,7 @@ import { requirePlayer } from "@/lib/auth/session";
 import { categoryLabel, displayFields } from "@/lib/tickets/categories";
 import { Container, Notice, TicketStatusBadge, formatDayTime } from "@/components/ui";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
-import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
-import { liveChannels } from "@/lib/live-channels";
-import { viewerOf } from "@/lib/tickets/service";
+import { liveChannels, type LiveChannelScope } from "@/lib/live-channels";
 import { PlayerTicketActions } from "@/components/tickets/PlayerTicketActions";
 
 export const metadata: Metadata = { title: "Ticket", robots: { index: false } };
@@ -20,9 +18,7 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
   const { user } = await requirePlayer(`/tickets/${id}`);
   const t0 = await db.ticket.findUnique({ where: { id }, select: { creatorId: true } });
   if (!t0 || t0.creatorId !== user.id) notFound();
-  // Version VOR den Daten lesen – so geht keine Nachricht dazwischen verloren
-  const scope: LiveScope = { type: "ticket", id, perspective: "player" };
-  const version = (await liveVersion(scope, viewerOf(user, "NONE"))) ?? "";
+  const scope: LiveChannelScope = { type: "ticket", id, perspective: "player" };
   const t = await db.ticket.findUniqueOrThrow({
     where: { id },
     include: {
@@ -33,7 +29,7 @@ export default async function PlayerTicketPage({ params, searchParams }: { param
   const fields = displayFields(t.category, t.fields);
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider channels={liveChannels(scope)} viewerName={user.globalName || user.username}>
       <Container className="pt-32 sm:pt-36">
         <Link href="/dashboard" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Meine Tickets

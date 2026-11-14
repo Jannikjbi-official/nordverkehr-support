@@ -22,21 +22,10 @@ export const getCurrentAccess = cache(async () => {
   return { user, access: await getAccess(user) } as const;
 });
 
-/** Hintergrundarbeiten (Outbox, Auto-Close, Erinnerungen) gedrosselt anstoßen – ohne Worker. */
-async function kickHousekeeping() {
-  try {
-    const { scheduleHousekeeping } = await import("@/lib/housekeeping");
-    await scheduleHousekeeping();
-  } catch {
-    // außerhalb eines Requests (z. B. Tests) – egal
-  }
-}
-
 /** Eingeloggt sein, sonst Login. Gebannte Personen sind erlaubt (nur für Anträge/Konto verwenden). */
 export async function requireUser(callbackUrl = "/dashboard"): Promise<{ user: CurrentUser; access: Access }> {
   const { user, access } = await getCurrentAccess();
   if (!user || !access) redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-  await kickHousekeeping();
   return { user, access };
 }
 
@@ -61,7 +50,6 @@ export async function requireTeam(min: TeamLevel = "SUPPORT") {
   if (!access.isTeam) redirect("/kein-zugriff");
   if (!atLeast(access.teamLevel, min)) redirect("/team?hinweis=rechte");
   await touchTeamActivity(user);
-  await kickHousekeeping();
   return { user, access };
 }
 

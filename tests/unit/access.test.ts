@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { canServeStale, levelFromRoles, needsRefresh, resolveAccess, type AccessDeps, type AccessSubject } from "@/lib/auth/access";
+import { levelFromRoles, resolveAccess, type AccessDeps, type AccessSubject } from "@/lib/auth/access";
 
 const roles = { supportRoleId: "1", moderationRoleId: "2", leitungRoleId: "3" };
 const NOW = new Date("2026-11-13T12:00:00Z");
@@ -82,25 +82,5 @@ describe("Zugriff für gebannte Spieler", () => {
     const d = deps({ fetchBan: vi.fn(async () => Promise.reject(new Error("50013"))) });
     const a = await resolveAccess(subject({ guildBanned: true, guildBanReason: "x" }), d);
     expect(a.guildBanned).toBe(true);
-  });
-});
-
-describe("Rollen-Cache: im Hintergrund auffrischen", () => {
-  const now = new Date("2026-11-13T12:00:00Z");
-  const ago = (s: number) => new Date(now.getTime() - s * 1000);
-  const cfg = { ttlMs: 60_000, banTtlMs: 300_000 };
-
-  it("frisch → kein Abruf nötig", () => {
-    expect(needsRefresh({ roleCheckedAt: ago(30), banCheckedAt: null, inGuild: true }, cfg, now)).toBe(false);
-  });
-  it("Rollen älter als TTL → auffrischen; bis 10 Min. darf der alte Stand sofort geliefert werden", () => {
-    const s = { roleCheckedAt: ago(120), banCheckedAt: null, inGuild: true };
-    expect(needsRefresh(s, cfg, now)).toBe(true);
-    expect(canServeStale(s, now, 600_000)).toBe(true);
-    expect(canServeStale({ ...s, roleCheckedAt: ago(900) }, now, 600_000)).toBe(false);
-  });
-  it("nicht auf dem Server: Bann-Stand muss auch noch jung genug sein", () => {
-    expect(canServeStale({ roleCheckedAt: ago(120), banCheckedAt: ago(120), inGuild: false }, now, 600_000)).toBe(true);
-    expect(canServeStale({ roleCheckedAt: ago(120), banCheckedAt: null, inGuild: false }, now, 600_000)).toBe(false);
   });
 });

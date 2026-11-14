@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { channelsForMutation, notifyChanged } from "@/lib/realtime";
 
 /**
@@ -102,18 +103,23 @@ const realtimeSignals = Prisma.defineExtension({
   },
 });
 
+/**
+ * Treiber-Adapter (pg) statt Rust-Engine: deutlich kleinere Server-Pakete.
+ * `?schema=` (z. B. Integrationstests) wird an den Adapter weitergereicht.
+ */
+export function createAdapter(url: string) {
+  const u = new URL(url);
+  const schema = u.searchParams.get("schema") ?? undefined;
+  u.searchParams.delete("schema");
+  const timeout = Number(u.searchParams.get("connect_timeout") ?? 15);
+  u.searchParams.delete("connect_timeout");
+  return new PrismaPg({ connectionString: u.toString(), connectionTimeoutMillis: timeout * 1000, max: 5 }, schema ? { schema } : undefined);
+}
+
 export function getDb(): PrismaClient {
   if (!globalForPrisma.__nvsPrisma) {
-    // Query-Extension ändert keine Typen – der Cast ist sicher
-    globalForPrisma.__nvsPrisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() }).$extends(noNulBytes).$extends(realtimeSignals) as unknown as PrismaClient;
-    // Ersteinrichtung (leere DB bzw. neue Standard-Artikel) einmal pro Instanz –
-    // im Hintergrund, die erste Anfrage wartet nicht darauf.
-    const client = globalForPrisma.__nvsPrisma;
-    if (process.env.NEXT_PHASE !== "phase-production-build" && process.env.VITEST !== "true") {
-      void import("@/lib/setup/base-seed")
-        .then(({ ensureBaseDataOnce }) => ensureBaseDataOnce(client))
-        .catch((e) => console.error("[setup] Ersteinrichtung fehlgeschlagen", e));
-    }
+    // Query-Extensions ändern keine Typen – der Cast ist sicher
+    globalForPrisma.__nvsPrisma = new PrismaClient({ adapter: createAdapter(resolveDatabaseUrl()) }).$extends(noNulBytes).$extends(realtimeSignals) as unknown as PrismaClient;
   }
   return globalForPrisma.__nvsPrisma;
 }

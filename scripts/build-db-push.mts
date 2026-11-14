@@ -10,6 +10,7 @@
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import { findDatabaseUrlKey, resolveDirectUrl } from "../src/lib/db";
+import { ensureBaseDataOnce } from "../src/lib/setup/base-seed";
 
 if (!findDatabaseUrlKey()) {
   console.log("[db] Keine Postgres-URL gesetzt – Schema-Abgleich übersprungen.");
@@ -26,4 +27,11 @@ const r = spawnSync("npx", ["prisma", "db", "push", "--skip-generate"], {
   env: { ...process.env, DATABASE_URL: url, CHECKPOINT_DISABLE: "1" },
   shell: true,
 });
-process.exit(r.status ?? 1);
+if (r.status !== 0) process.exit(r.status ?? 1);
+
+// Basisdaten (Kategorien, Artikel, Antragsarten, Bausteine) hier beim Build
+// anlegen bzw. ergänzen – zur Laufzeit gibt es dafür keine Prüfung.
+const { db } = await import("../src/lib/db");
+await ensureBaseDataOnce(db, (m) => console.log("[db]", m));
+await db.$disconnect();
+process.exit(0);

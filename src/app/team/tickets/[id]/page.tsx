@@ -15,8 +15,7 @@ import { PRIORITY_LABEL, TICKET_STATUS_LABEL_TEAM } from "@/lib/tickets/status";
 import { listTeamMembers } from "@/lib/team/queries";
 import { Avatar, Notice, PriorityBadge, TicketStatusBadge, formatDayTime, formatRelative } from "@/components/ui";
 import { LiveMessages, LiveThreadProvider } from "@/components/live/Live";
-import { liveScopeQuery, liveVersion, type LiveScope } from "@/lib/live";
-import { liveChannels } from "@/lib/live-channels";
+import { liveChannels, type LiveChannelScope } from "@/lib/live-channels";
 import { TicketComposer, TicketSideControls } from "@/components/team/TicketControls";
 
 export const metadata: Metadata = { title: "Ticket" };
@@ -27,9 +26,7 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const { user, access } = await requireTeam();
   const viewer = viewerOf(user, access.teamLevel);
-  // Version VOR den Daten lesen – so geht keine Nachricht dazwischen verloren
-  const scope: LiveScope = { type: "ticket", id, perspective: "team" };
-  const version = (await liveVersion(scope, viewer)) ?? "";
+  const scope: LiveChannelScope = { type: "ticket", id, perspective: "team" };
   const t0 = await db.ticket.findUnique({ where: { id } });
   // Beschuldigte/zu niedrige Stufe: wie „nicht vorhanden“ behandeln (kein Hinweis auf Existenz)
   if (!t0 || !teamCanSeeTicket(viewer, t0)) notFound();
@@ -56,7 +53,7 @@ export default async function TeamTicketPage({ params }: { params: Promise<{ id:
   const relevantTemplates = templates.filter((x) => !x.ticketCategory || x.ticketCategory === t.category);
 
   return (
-    <LiveThreadProvider query={liveScopeQuery(scope)} channels={liveChannels(scope)} version={version} viewerName={user.globalName || user.username}>
+    <LiveThreadProvider channels={liveChannels(scope)} viewerName={user.globalName || user.username}>
       <div>
         <Link href="/team/tickets" className="nv-btn nv-btn-quiet nv-btn-sm">
           <ArrowLeft size={14} aria-hidden /> Alle Tickets

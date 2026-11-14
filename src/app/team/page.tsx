@@ -14,6 +14,8 @@ export const metadata: Metadata = { title: "Übersicht" };
 
 export default async function TeamHome({ searchParams }: { searchParams: Promise<{ hinweis?: string }> }) {
   const { user, access } = await requireTeam();
+  // Fällige Aufgaben (Erinnerungen, Auto-Schließen …) nur hier, auf Abruf des Teams
+  await import("@/lib/housekeeping").then((m) => m.scheduleHousekeeping()).catch(() => {});
   const { hinweis } = await searchParams;
   const viewer = viewerOf(user, access.teamLevel);
   const vis = ticketTeamWhere(viewer);

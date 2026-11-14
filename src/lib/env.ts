@@ -28,7 +28,7 @@ const serverSchema = z.object({
   DISCORD_LOG_CHANNEL_ID: optSnowflake,
   /// Weiterleitung fremder Interaktionen (Bewerbungsportal). Leer = keine Weiterleitung.
   INTERACTIONS_FORWARD_URL: z.string().url().optional(),
-  ROLE_CACHE_TTL_SECONDS: z.coerce.number().int().min(5).max(3600).default(60),
+  ROLE_CACHE_TTL_SECONDS: z.coerce.number().int().min(5).max(3600).default(300),
   BAN_CACHE_TTL_SECONDS: z.coerce.number().int().min(30).max(86400).default(300),
 
   CRON_SECRET: z.string().min(16).optional(),

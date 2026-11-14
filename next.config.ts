@@ -20,16 +20,23 @@ const nextConfig: NextConfig = {
   // für andere Systeme – gebraucht wird nur die native Postgres-Engine (Linux, glibc).
   outputFileTracingExcludes: {
     "*": [
-      "node_modules/@prisma/client/runtime/*.wasm*",
-      "node_modules/@prisma/client/runtime/query_engine_bg.*",
-      "node_modules/@prisma/client/runtime/query_compiler_bg.*",
+      // Prisma läuft ohne Rust-Engine (engineType "client" + pg-Adapter):
+      // gebraucht werden nur runtime/client.js und .prisma/client/query_compiler_bg.*
+      "node_modules/@prisma/client/runtime/library.*",
       "node_modules/@prisma/client/runtime/binary.*",
       "node_modules/@prisma/client/runtime/edge*",
       "node_modules/@prisma/client/runtime/wasm*",
       "node_modules/@prisma/client/runtime/react-native*",
-      "node_modules/.prisma/client/*.wasm",
+      "node_modules/@prisma/client/runtime/query_engine_bg.*",
+      "node_modules/@prisma/client/runtime/query_compiler_bg.*",
+      "node_modules/@prisma/client/runtime/*.wasm*",
+      "node_modules/.prisma/client/libquery_engine*",
+      "node_modules/.prisma/client/query_engine_bg.*",
       "node_modules/.prisma/client/edge*",
       "node_modules/.prisma/client/wasm*",
+      "node_modules/@prisma/engines/**",
+      "node_modules/prisma/**",
+      // sharp: nur die Linux-glibc-Variante wird auf Vercel gebraucht
       "node_modules/@img/sharp-libvips-linuxmusl-*/**",
       "node_modules/@img/sharp-linuxmusl-*/**",
       "node_modules/@img/sharp-wasm32/**",
@@ -37,6 +44,7 @@ const nextConfig: NextConfig = {
       "node_modules/@img/sharp-win32-*/**",
     ],
   },
+
   turbopack: {
     rules: {
       "*.css": {
