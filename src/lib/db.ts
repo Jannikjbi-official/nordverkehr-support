@@ -111,6 +111,9 @@ export function createAdapter(url: string) {
   const u = new URL(url);
   const schema = u.searchParams.get("schema") ?? undefined;
   u.searchParams.delete("schema");
+  // Neon liefert sslmode=require; „verify-full“ ist das heutige (sichere) Verhalten
+  // und vermeidet die Umstellungs-Warnung von pg.
+  if (["require", "prefer", "verify-ca"].includes(u.searchParams.get("sslmode") ?? "")) u.searchParams.set("sslmode", "verify-full");
   const timeout = Number(u.searchParams.get("connect_timeout") ?? 15);
   u.searchParams.delete("connect_timeout");
   return new PrismaPg({ connectionString: u.toString(), connectionTimeoutMillis: timeout * 1000, max: 5 }, schema ? { schema } : undefined);
